@@ -1,46 +1,8 @@
-# Object files
-*.o
-*.ko
-*.obj
-*.elf
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
-
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
-
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
-gps-sdr-sim
-gps-sdr-sim-lut
-
-# Debug files
-*.dSYM/
-
-# Output
-*.bin
-
-# Temporary files
-*.swp
-
-# Netbeans project folder
-nbproject/*
-
-# Last used USER_MOTION_SIZE variable
-.user-motion-size
+.kdev4/
+CMakeCache.txt
+CMakeFiles/
+Makefile
+build/
+cmake_install.cmake
+gnss-sim.kdev4
+gpssim.bin

@@ -1,10 +1,14 @@
+// This file is part of:
+// gnss-sim: A GNSS Signal Simulator
+//
+// Copyright (c) 2020 Damien Dusha
+// SPDX-License-Identifier: MIT
+//
+// Derived from https://github.com/osqzss/gps-sdr-sim (MIT Licence):
+// Copyright (c) 2015-2020 Takuji Ebinuma
+
 #ifndef GPSSIM_H
 #define GPSSIM_H
-
-#define FLOAT_CARR_PHASE // For RKT simulation. Higher computational load, but smoother carrier phase.
-
-#define TRUE	(1)
-#define FALSE	(0)
 
 /*! \brief Maximum length of a line in a text file (RINEX, motion) */
 #define MAX_CHAR (100)
@@ -101,7 +105,7 @@ typedef struct
 /*! \brief Structure representing ephemeris of a single satellite */
 typedef struct
 {
-	int vflg;	/*!< Valid Flag */
+	bool vflg;	/*!< Valid Flag */
 	datetime_t t;
 	gpstime_t toc;	/*!< Time of Clock */
 	gpstime_t toe;	/*!< Time of Ephemeris */
@@ -137,7 +141,7 @@ typedef struct
 
 typedef struct
 {
-	int enable;
+	bool enable;
 	int vflg;
 	double alpha0,alpha1,alpha2,alpha3;
 	double beta0,beta1,beta2,beta3;
@@ -163,12 +167,7 @@ typedef struct
 	int ca[CA_SEQ_LEN]; /*< C/A Sequence */
 	double f_carr;	/*< Carrier frequency */
 	double f_code;	/*< Code frequency */
-#ifdef FLOAT_CARR_PHASE
 	double carr_phase;
-#else
-	unsigned int carr_phase; /*< Carrier phase */
-	int carr_phasestep;	/*< Carrier phasestep */
-#endif
 	double code_phase; /*< Code phase */
 	gpstime_t g0;	/*!< GPS time at start */
 	unsigned long sbf[5][N_DWRD_SBF]; /*!< current subframe */
