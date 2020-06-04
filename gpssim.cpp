@@ -1052,11 +1052,6 @@ int main(int argc, char *argv[])
 				}
 			}
 
-            max_i = std::max(max_i, i_acc);
-            max_q = std::max(max_q, q_acc);
-            min_i = std::min(min_i, i_acc);
-            min_q = std::min(min_q, q_acc);
-
             // At this point, the min and max values for the I- and Q- samples
             // are -16 and +16 based on the number of satellites processed.
             //
