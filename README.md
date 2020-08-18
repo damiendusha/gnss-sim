@@ -1,7 +1,7 @@
 # GNSS-SIM
 
 This is a branch of the classic GPS simulation program 
-(gps-sdr-sim](https://github.com/osqzss/gps-sdr-sim). The key differences
+[gps-sdr-sim](https://github.com/osqzss/gps-sdr-sim). The key differences
 between this and the original are:
 
  - Split out the single source into multiple C++ files; and
