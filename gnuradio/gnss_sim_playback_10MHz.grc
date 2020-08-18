@@ -56,13 +56,34 @@ blocks:
     start: '0.01'
     step: '0.01'
     stop: '1'
-    value: '0.2'
+    value: '0.25'
     widget: counter_slider
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
     coordinate: [542, 10]
+    rotation: 0
+    state: true
+- name: gps_gain
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: gps_gain
+    min_len: '200'
+    orient: Qt.Horizontal
+    rangeType: float
+    start: '0.01'
+    step: '0.01'
+    stop: '10'
+    value: '1'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [681, 12]
     rotation: 0
     state: true
 - name: samp_rate
@@ -89,7 +110,7 @@ blocks:
     start: '0'
     step: '0.05'
     stop: '10'
-    value: '0.5'
+    value: '1.0'
     widget: counter_slider
   states:
     bus_sink: false
@@ -114,7 +135,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [46, 415]
+    coordinate: [48, 295]
     rotation: 0
     state: true
 - name: blocks_add_xx_0
@@ -132,7 +153,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [750, 361]
+    coordinate: [835, 219]
     rotation: 0
     state: true
 - name: blocks_file_source_0
@@ -154,7 +175,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [21, 291]
+    coordinate: [24, 183]
     rotation: 0
     state: true
 - name: blocks_interleaved_short_to_complex_0
@@ -171,7 +192,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [290, 307]
+    coordinate: [253, 215]
     rotation: 0
     state: true
 - name: blocks_multiply_const_vxx_1
@@ -189,7 +210,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [500, 305]
+    coordinate: [454, 215]
     rotation: 0
     state: true
 - name: blocks_multiply_const_vxx_1_0
@@ -207,7 +228,25 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [871, 370]
+    coordinate: [941, 231]
+    rotation: 0
+    state: true
+- name: blocks_multiply_const_vxx_1_1
+  id: blocks_multiply_const_vxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    const: gps_gain
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [647, 215]
     rotation: 0
     state: true
 - name: qtgui_sink_x_0
@@ -236,7 +275,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1142, 242]
+    coordinate: [1172, 145]
     rotation: 0
     state: true
 - name: uhd_usrp_sink_0
@@ -512,7 +551,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1134, 477]
+    coordinate: [1174, 269]
     rotation: 0
     state: true
 
@@ -521,9 +560,10 @@ connections:
 - [blocks_add_xx_0, '0', blocks_multiply_const_vxx_1_0, '0']
 - [blocks_file_source_0, '0', blocks_interleaved_short_to_complex_0, '0']
 - [blocks_interleaved_short_to_complex_0, '0', blocks_multiply_const_vxx_1, '0']
-- [blocks_multiply_const_vxx_1, '0', blocks_add_xx_0, '0']
+- [blocks_multiply_const_vxx_1, '0', blocks_multiply_const_vxx_1_1, '0']
 - [blocks_multiply_const_vxx_1_0, '0', qtgui_sink_x_0, '0']
 - [blocks_multiply_const_vxx_1_0, '0', uhd_usrp_sink_0, '0']
+- [blocks_multiply_const_vxx_1_1, '0', blocks_add_xx_0, '0']
 
 metadata:
   file_format: 1

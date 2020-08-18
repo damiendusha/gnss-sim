@@ -75,18 +75,22 @@ class gnss_sim_playback_10MHz(gr.top_block, Qt.QWidget):
         ##################################################
         # Variables
         ##################################################
-        self.sigma_awgn = sigma_awgn = 0.5
+        self.sigma_awgn = sigma_awgn = 1.0
         self.samp_rate = samp_rate = 10e6
-        self.gain = gain = 0.2
+        self.gps_gain = gps_gain = 1
+        self.gain = gain = 0.25
         self.freq = freq = 1575.42e6
 
         ##################################################
         # Blocks
         ##################################################
-        self._sigma_awgn_range = Range(0, 10, 0.05, 0.5, 200)
+        self._sigma_awgn_range = Range(0, 10, 0.05, 1.0, 200)
         self._sigma_awgn_win = RangeWidget(self._sigma_awgn_range, self.set_sigma_awgn, 'sigma_awgn', "counter_slider", float)
         self.top_grid_layout.addWidget(self._sigma_awgn_win)
-        self._gain_range = Range(0.01, 1, 0.01, 0.2, 200)
+        self._gps_gain_range = Range(0.01, 10, 0.01, 1, 200)
+        self._gps_gain_win = RangeWidget(self._gps_gain_range, self.set_gps_gain, 'gps_gain', "counter_slider", float)
+        self.top_grid_layout.addWidget(self._gps_gain_win)
+        self._gain_range = Range(0.01, 1, 0.01, 0.25, 200)
         self._gain_win = RangeWidget(self._gain_range, self.set_gain, 'gain', "counter_slider", float)
         self.top_grid_layout.addWidget(self._gain_win)
         self.uhd_usrp_sink_0 = uhd.usrp_sink(
@@ -121,6 +125,7 @@ class gnss_sim_playback_10MHz(gr.top_block, Qt.QWidget):
         self.qtgui_sink_x_0.enable_rf_freq(False)
 
         self.top_grid_layout.addWidget(self._qtgui_sink_x_0_win)
+        self.blocks_multiply_const_vxx_1_1 = blocks.multiply_const_cc(gps_gain)
         self.blocks_multiply_const_vxx_1_0 = blocks.multiply_const_cc(gain)
         self.blocks_multiply_const_vxx_1 = blocks.multiply_const_cc(1.0 / (2**12))
         self.blocks_interleaved_short_to_complex_0 = blocks.interleaved_short_to_complex(False, False)
@@ -138,9 +143,10 @@ class gnss_sim_playback_10MHz(gr.top_block, Qt.QWidget):
         self.connect((self.blocks_add_xx_0, 0), (self.blocks_multiply_const_vxx_1_0, 0))
         self.connect((self.blocks_file_source_0, 0), (self.blocks_interleaved_short_to_complex_0, 0))
         self.connect((self.blocks_interleaved_short_to_complex_0, 0), (self.blocks_multiply_const_vxx_1, 0))
-        self.connect((self.blocks_multiply_const_vxx_1, 0), (self.blocks_add_xx_0, 0))
+        self.connect((self.blocks_multiply_const_vxx_1, 0), (self.blocks_multiply_const_vxx_1_1, 0))
         self.connect((self.blocks_multiply_const_vxx_1_0, 0), (self.qtgui_sink_x_0, 0))
         self.connect((self.blocks_multiply_const_vxx_1_0, 0), (self.uhd_usrp_sink_0, 0))
+        self.connect((self.blocks_multiply_const_vxx_1_1, 0), (self.blocks_add_xx_0, 0))
 
     def closeEvent(self, event):
         self.settings = Qt.QSettings("GNU Radio", "gnss_sim_playback_10MHz")
@@ -161,6 +167,13 @@ class gnss_sim_playback_10MHz(gr.top_block, Qt.QWidget):
         self.samp_rate = samp_rate
         self.qtgui_sink_x_0.set_frequency_range(0, self.samp_rate)
         self.uhd_usrp_sink_0.set_samp_rate(self.samp_rate)
+
+    def get_gps_gain(self):
+        return self.gps_gain
+
+    def set_gps_gain(self, gps_gain):
+        self.gps_gain = gps_gain
+        self.blocks_multiply_const_vxx_1_1.set_k(self.gps_gain)
 
     def get_gain(self):
         return self.gain
