@@ -15,16 +15,19 @@
 #include "gps_subframe.h"
 #include "geodesy.h"
 #include "nmea_reader.h"
+#include "noise_generator.h"
 #include "sin_table.h"
+#include "sample_writer.h"
 #include "satellite_gain.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include <time.h>
 #include <unistd.h>
 #include <iostream>
+
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
+#include <ctime>
 
 
 int allocatedSat[MAX_SAT];
@@ -79,32 +82,28 @@ void codegen(int *ca, int prn)
 double ionosphericDelay(const ionoutc_t *ionoutc, gpstime_t g, double *llh, double *azel)
 {
 	double iono_delay = 0.0;
-	double E,phi_u,lam_u,F;
 
 	if (ionoutc->enable==false)
 		return (0.0); // No ionospheric delay
 
-	E = azel[1]/PI;
-	phi_u = llh[0]/PI;
-	lam_u = llh[1]/PI;
+	const double E = azel[1]/PI;
+	const double phi_u = llh[0]/PI;
+	const double lam_u = llh[1]/PI;
 
 	// Obliquity factor
-	F = 1.0 + 16.0*pow((0.53 - E),3.0);
+	const double F = 1.0 + 16.0*pow((0.53 - E),3.0);
 
 	if (ionoutc->vflg==false)
 		iono_delay = F*5.0e-9*SPEED_OF_LIGHT;
 	else
 	{
-		double t,psi,phi_i,lam_i,phi_m,phi_m2,phi_m3;
-		double AMP,PER,X,X2,X4;
-
 		// Earth's central angle between the user position and the earth projection of
 		// ionospheric intersection point (semi-circles)
-		psi = 0.0137/(E + 0.11) - 0.022;
+		const double psi = 0.0137/(E + 0.11) - 0.022;
 		
 		// Geodetic latitude of the earth projection of the ionospheric intersection point
 		// (semi-circles)
-		phi_i = phi_u + psi*cos(azel[0]);
+		double phi_i = phi_u + psi*cos(azel[0]);
 		if(phi_i>0.416)
 			phi_i = 0.416;
 		else if(phi_i<-0.416)
@@ -112,38 +111,38 @@ double ionosphericDelay(const ionoutc_t *ionoutc, gpstime_t g, double *llh, doub
 
 		// Geodetic longitude of the earth projection of the ionospheric intersection point
 		// (semi-circles)
-		lam_i = lam_u + psi*sin(azel[0])/cos(phi_i*PI);
+		const double lam_i = lam_u + psi*sin(azel[0])/cos(phi_i*PI);
 
 		// Geomagnetic latitude of the earth projection of the ionospheric intersection
 		// point (mean ionospheric height assumed 350 km) (semi-circles)
-		phi_m = phi_i + 0.064*cos((lam_i - 1.617)*PI);
-		phi_m2 = phi_m*phi_m;
-		phi_m3 = phi_m2*phi_m;
+		const double phi_m = phi_i + 0.064*cos((lam_i - 1.617)*PI);
+		const double phi_m2 = phi_m*phi_m;
+		const double phi_m3 = phi_m2*phi_m;
 
-		AMP = ionoutc->alpha0 + ionoutc->alpha1*phi_m
+		double AMP = ionoutc->alpha0 + ionoutc->alpha1*phi_m
 			+ ionoutc->alpha2*phi_m2 + ionoutc->alpha3*phi_m3;
 		if (AMP<0.0)
 			AMP = 0.0;
 
-		PER = ionoutc->beta0 + ionoutc->beta1*phi_m
+		double PER = ionoutc->beta0 + ionoutc->beta1*phi_m
 			+ ionoutc->beta2*phi_m2 + ionoutc->beta3*phi_m3;
 		if (PER<72000.0)
 			PER = 72000.0;
 
 		// Local time (sec)
-		t = SECONDS_IN_DAY/2.0*lam_i + g.sec;
+		double t = SECONDS_IN_DAY/2.0*lam_i + g.sec;
 		while(t>=SECONDS_IN_DAY)
 			t -= SECONDS_IN_DAY;
 		while(t<0)
 			t += SECONDS_IN_DAY;
 
 		// Phase (radians)
-		X = 2.0*PI*(t - 50400.0)/PER;
+		const double X = 2.0*PI*(t - 50400.0)/PER;
 
 		if(fabs(X)<1.57)
 		{
-			X2 = X*X;
-			X4 = X2*X2;
+			const double X2 = X*X;
+			const double X4 = X2*X2;
 			iono_delay = F*(5.0e-9 + AMP*(1.0 - X2/2.0 + X4/24.0))*SPEED_OF_LIGHT;
 		}
 		else
@@ -481,7 +480,6 @@ void usage(void)
 		"  -d <duration>    Duration [sec] (dynamic mode max: %.0f, static mode max: %d)\n"
 		"  -o <output>      I/Q sampling data file (default: gpssim.bin)\n"
 		"  -s <frequency>   Sampling frequency [Hz] (default: 2600000)\n"
-		"  -b <iq_bits>     I/Q data format [1/8/16] (default: 16)\n"
 		"  -i               Disable ionospheric delay for spacecraft scenario\n"
 		"  -v               Show details about simulated channels\n",
 		((double)USER_MOTION_SIZE) / 10.0, STATIC_MAX_DURATION);
@@ -492,8 +490,6 @@ void usage(void)
 int main(int argc, char *argv[])
 {
 	clock_t tstart,tend;
-
-	FILE *fp;
 
 	int sv;
 	int neph,ieph;
@@ -506,14 +502,8 @@ int main(int argc, char *argv[])
 	channel_t chan[MAX_CHAN];
 	double elvmask = 0.0; // in degree
 
-	short *iq_buff = NULL;
-	signed char *iq8_buff = NULL;
-
 	gpstime_t grx;
-	double delt;
-	int isamp;
 
-	int iumd;
 	int numd;
 	char umfile[MAX_CHAR];
 	double xyz[USER_MOTION_SIZE][3];
@@ -522,10 +512,8 @@ int main(int argc, char *argv[])
 	bool nmeaGGA = false;
 
 	char navfile[MAX_CHAR];
-	char outfile[MAX_CHAR];
 
-	int iq_buff_size;
-	int data_format;
+    std::string output_sample_filename = {"gpssim.bin"};
 
 	int result;
 
@@ -540,6 +528,8 @@ int main(int argc, char *argv[])
 	bool timeoverwrite = false;
 
 	ionoutc_t ionoutc;
+    
+    NoiseGenerator noise_generator(1.0, 0.20, 0.5);
 
 	////////////////////////////////////////////////////////////
 	// Read options
@@ -548,9 +538,7 @@ int main(int argc, char *argv[])
 	// Default options
 	navfile[0] = '\0';
 	umfile[0] = '\0';
-	strcpy(outfile, "gpssim.bin");
 	double samp_freq = 2.6e6;
-	data_format = SC16;
 	g0.week = -1; // Invalid start time
 	int iduration = USER_MOTION_SIZE;
 	double duration = (double)iduration/10.0; // Default duration
@@ -562,7 +550,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	while ((result=getopt(argc,argv,"e:u:g:c:l:o:s:b:T:t:d:iv"))!=-1)
+	while ((result=getopt(argc,argv,"e:u:g:c:l:o:s:T:t:d:iv"))!=-1)
 	{
 		switch (result)
 		{
@@ -592,21 +580,13 @@ int main(int argc, char *argv[])
 			llh2xyz(llh,xyz[0]); // Convert llh to xyz
 			break;
 		case 'o':
-			strcpy(outfile, optarg);
+			output_sample_filename.assign(optarg);
 			break;
 		case 's':
 			samp_freq = atof(optarg);
-			if (samp_freq<1.0e6)
+			if (samp_freq < 1.0e6)
 			{
 				fprintf(stderr, "ERROR: Invalid sampling frequency.\n");
-				exit(1);
-			}
-			break;
-		case 'b':
-			data_format = atoi(optarg);
-			if (data_format!=SC01 && data_format!=SC08 && data_format!=SC16)
-			{
-				fprintf(stderr, "ERROR: Invalid I/Q data format.\n");
 				exit(1);
 			}
 			break;
@@ -675,19 +655,23 @@ int main(int argc, char *argv[])
 		llh[2] = 10.0;
 	}
 
-	if (duration<0.0 || (duration>((double)USER_MOTION_SIZE)/10.0 && !staticLocationMode) || (duration>STATIC_MAX_DURATION && staticLocationMode))
+	if (duration<0.0 || (duration>((double)USER_MOTION_SIZE)/10.0 && !staticLocationMode) || 
+        (duration>STATIC_MAX_DURATION && staticLocationMode))
 	{
 		fprintf(stderr, "ERROR: Invalid duration.\n");
 		exit(1);
 	}
 	iduration = (int)(duration*10.0 + 0.5);
 
-	// Buffer size	
-	samp_freq = floor(samp_freq/10.0);
-	iq_buff_size = (int)samp_freq; // samples per 0.1sec
-	samp_freq *= 10.0;
+    SampleWriter sample_writer;
+    if (sample_writer.OpenFile(output_sample_filename))
+    {
+        fprintf(stderr, "ERROR: Failed to open output sample file \"%s\".\n", output_sample_filename.c_str());
+    }
 
-	delt = 1.0/samp_freq;
+	// Round the sample frequency to the nearest 10Hz.
+	samp_freq = std::round(samp_freq / 10.0) * 10.0;
+	const double delt = 1.0 / samp_freq;
 
 	////////////////////////////////////////////////////////////
 	// Receiver position
@@ -865,50 +849,6 @@ int main(int argc, char *argv[])
 	}
 
 	////////////////////////////////////////////////////////////
-	// Baseband signal buffer and output file
-	////////////////////////////////////////////////////////////
-
-	// Allocate I/Q buffer
-	iq_buff = reinterpret_cast<short*>(calloc(2*iq_buff_size, 2));
-
-	if (iq_buff==NULL)
-	{
-		fprintf(stderr, "ERROR: Faild to allocate 16-bit I/Q buffer.\n");
-		exit(1);
-	}
-
-	if (data_format==SC08)
-	{
-		iq8_buff = reinterpret_cast<signed char*>(calloc(2*iq_buff_size, 1));
-		if (iq8_buff==NULL)
-		{
-			fprintf(stderr, "ERROR: Faild to allocate 8-bit I/Q buffer.\n");
-			exit(1);
-		}
-	}
-	else if (data_format==SC01)
-	{
-		iq8_buff = reinterpret_cast<signed char*>(calloc(iq_buff_size/4, 1)); // byte = {I0, Q0, I1, Q1, I2, Q2, I3, Q3}
-		if (iq8_buff==NULL)
-		{
-			fprintf(stderr, "ERROR: Faild to allocate compressed 1-bit I/Q buffer.\n");
-			exit(1);
-		}
-	}
-
-	// Open output file
-	// "-" can be used as name for stdout
-	if(strcmp("-", outfile)){
-		if (NULL==(fp=fopen(outfile,"wb")))
-		{
-			fprintf(stderr, "ERROR: Failed to open output file.\n");
-			exit(1);
-		}
-	}else{
-		fp = stdout;
-	}
-
-	////////////////////////////////////////////////////////////
 	// Initialize channels
 	////////////////////////////////////////////////////////////
 
@@ -966,7 +906,7 @@ int main(int argc, char *argv[])
     constellation_gain.SetSatelliteToConstantGain(28, 0.10);
     constellation_gain.SetSatelliteToConstantGain(32, 0.07);
 
-	for (iumd=1; iumd<numd; iumd++)
+	for (int iumd = 1; iumd < numd; iumd++)
 	{
         // Per-channel gain, maximum value of 1.
         double gain[MAX_CHAN];
@@ -997,7 +937,10 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		for (isamp=0; isamp<iq_buff_size; isamp++)
+		// There is no intrinsic need to loop here, but we do so to avoid computing
+		// the pseudorange too frequently.
+		const int samples_in_100ms = std::lround((1.0 / 10.0) * samp_freq);
+		for (int isamp = 0; isamp < samples_in_100ms; isamp++)
 		{
 			double i_acc = 0;
 			double q_acc = 0;
@@ -1039,7 +982,7 @@ int main(int argc, char *argv[])
 						}
 					}
 
-					// Set currnt code chip
+					// Set current code chip
 					chan[i].codeCA = chan[i].ca[(int)chan[i].code_phase]*2-1;
 
 					// Update carrier phase
@@ -1055,39 +998,11 @@ int main(int argc, char *argv[])
             // At this point, the min and max values for the I- and Q- samples
             // are -16 and +16 based on the number of satellites processed.
             //
-            // We wish to scale to a 14-bit number (the additional headroom
-            // allows us to add constellations without changing this scale).
-                                         
-			// i_acc = (((int) i_acc * 128 * 250) + 64) >> 7;
-			// q_acc = (((int) q_acc * 128 * 250) + 64) >> 7;
-            
-            // Store I/Q samples into buffer
-            iq_buff[isamp*2] = (short) std::lround(i_acc * (16384 / 32));
-            iq_buff[isamp*2+1] = (short) std::lround(q_acc * (16384 / 32));
-		}
-
-		if (data_format==SC01)
-		{
-			for (isamp=0; isamp<2*iq_buff_size; isamp++)
-			{
-				if (isamp%8==0)
-					iq8_buff[isamp/8] = 0x00;
-
-				iq8_buff[isamp/8] |= (iq_buff[isamp]>0?0x01:0x00)<<(7-isamp%8);
-			}
-
-			fwrite(iq8_buff, 1, iq_buff_size/4, fp);
-		}
-		else if (data_format==SC08)
-		{
-			for (isamp=0; isamp<2*iq_buff_size; isamp++)
-				iq8_buff[isamp] = iq_buff[isamp]>>4; // 12-bit bladeRF -> 8-bit HackRF
-
-			fwrite(iq8_buff, 1, 2*iq_buff_size, fp);
-		} 
-		else // data_format==SC16
-		{
-			fwrite(iq_buff, 2, 2*iq_buff_size, fp);
+            // We scale them to +/- 0.5 for the sample writer.
+            constexpr double kSampleScale = 1.0 / (2.0 * 16.0);
+            sample_writer.WriteSample(
+                    noise_generator.ScaleAndAddNoise(i_acc * kSampleScale),
+                    noise_generator.ScaleAndAddNoise(q_acc * kSampleScale));
 		}
 
 		//
@@ -1158,13 +1073,6 @@ int main(int argc, char *argv[])
 	tend = clock();
 
 	fprintf(stderr, "\nDone!\n");
-
-	// Free I/Q buffer
-	free(iq_buff);
-    free(iq8_buff);
-
-	// Close file
-	fclose(fp);
 
 	// Process time
 	fprintf(stderr, "Process time = %.1f [sec]\n", (double)(tend-tstart)/CLOCKS_PER_SEC);

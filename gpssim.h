@@ -77,11 +77,6 @@
 #define CODE_FREQ (1.023e6)
 #define CARR_TO_CODE (1.0/1540.0)
 
-// Sampling data format
-#define SC01 (1)
-#define SC08 (8)
-#define SC16 (16)
-
 #define EPHEM_ARRAY_SIZE (13) // for daily GPS broadcast ephemers file (brdc)
 
 /*! \brief Structure representing GPS time */
