@@ -518,7 +518,6 @@ int main(int argc, char *argv[])
 
 	datetime_t t0,tmin,tmax;
 	gpstime_t gmin,gmax;
-	double dt;
 
 	bool verbose = false;
 
@@ -827,7 +826,7 @@ int main(int argc, char *argv[])
 		{
 			if (eph[i][sv].vflg == 1)
 			{
-				dt = subGpsTime(g0, eph[i][sv].toc);
+				const double dt = subGpsTime(g0, eph[i][sv].toc);
 				if (dt>=-SECONDS_IN_HOUR && dt<SECONDS_IN_HOUR)
 				{
 					ieph = i;
@@ -1025,11 +1024,10 @@ int main(int argc, char *argv[])
 			{
 				if (eph[ieph+1][sv].vflg==1)
 				{
-					dt = subGpsTime(eph[ieph+1][sv].toc, grx);
-					if (dt<SECONDS_IN_HOUR)
+					const double dt = subGpsTime(eph[ieph+1][sv].toc, grx);
+					if (dt < SECONDS_IN_HOUR)
 					{
 						ieph++;
-
 						for (int i = 0; i < MAX_CHAN; i++)
 						{
 							// Generate new subframes if allocated
