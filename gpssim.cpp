@@ -93,8 +93,9 @@ double ionosphericDelay(const ionoutc_t *ionoutc, gpstime_t g, double *llh, doub
 	// Obliquity factor
 	const double F = 1.0 + 16.0*pow((0.53 - E),3.0);
 
-	if (ionoutc->vflg==false)
+	if (ionoutc->vflg==false) {
 		iono_delay = F*5.0e-9*SPEED_OF_LIGHT;
+    }
 	else
 	{
 		// Earth's central angle between the user position and the earth projection of
@@ -401,7 +402,7 @@ int allocateChannel(channel_t *chan, ephem_t *eph, ionoutc_t ionoutc,
 
 	double ref[3]={0.0};
 
-	for (int sv=0; sv < MAX_SAT; sv++)
+	for (int sv = 0; sv < MAX_SAT; sv++)
 	{
 		if (checkSatVisibility(eph[sv], grx, xyz, 0.0, azel)==1)
 		{
@@ -491,7 +492,6 @@ int main(int argc, char *argv[])
 {
 	clock_t tstart,tend;
 
-	int sv;
 	int neph,ieph;
 	ephem_t eph[EPHEM_ARRAY_SIZE][MAX_SAT];
 	gpstime_t g0;
@@ -730,7 +730,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "%6d\n", ionoutc.dtls);
 	}
 
-	for (sv=0; sv<MAX_SAT; sv++) 
+	for (int sv = 0; sv < MAX_SAT; sv++) 
 	{
 		if (eph[0][sv].vflg==1)
 		{
@@ -748,7 +748,7 @@ int main(int argc, char *argv[])
 	tmax.d = 0;
 	tmax.m = 0;
 	tmax.y = 0;
-	for (sv=0; sv<MAX_SAT; sv++)
+	for (int sv = 0; sv < MAX_SAT; sv++)
 	{
 		if (eph[neph-1][sv].vflg == 1)
 		{
@@ -776,7 +776,7 @@ int main(int argc, char *argv[])
 			ionoutc.tot = (int)gtmp.sec;
 
 			// Overwrite the TOC and TOE to the scenario start time
-			for (sv=0; sv<MAX_SAT; sv++)
+			for (int sv = 0; sv < MAX_SAT; sv++)
 			{
 				for (int i = 0; i < neph; i++)
 				{
@@ -823,7 +823,7 @@ int main(int argc, char *argv[])
 
 	for (int i = 0; i < neph; i++)
 	{
-		for (sv=0; sv<MAX_SAT; sv++)
+		for (int sv = 0; sv < MAX_SAT; sv++)
 		{
 			if (eph[i][sv].vflg == 1)
 			{
@@ -856,7 +856,7 @@ int main(int argc, char *argv[])
     }
 
 	// Clear satellite allocation flag
-	for (sv=0; sv<MAX_SAT; sv++) {
+	for (int sv = 0; sv < MAX_SAT; sv++) {
 		allocatedSat[sv] = -1;
     }
 
@@ -917,7 +917,7 @@ int main(int argc, char *argv[])
 			{
 				// Refresh code phase and data bit counters
 				range_t rho;
-				sv = chan[i].prn-1;
+				const int sv = chan[i].prn-1;
 
 				// Current pseudorange
 				if (!staticLocationMode)
@@ -1010,7 +1010,6 @@ int main(int argc, char *argv[])
 		//
 
         const int igrx = (int)(grx.sec*10.0+0.5);
-
 		if (igrx % 300 == 0) // Every 30 seconds
 		{
 			// Update navigation message
@@ -1022,7 +1021,7 @@ int main(int argc, char *argv[])
 
 			// Refresh ephemeris and subframes
 			// Quick and dirty fix. Need more elegant way.
-			for (sv=0; sv<MAX_SAT; sv++)
+			for (int sv=0; sv < MAX_SAT; sv++)
 			{
 				if (eph[ieph+1][sv].vflg==1)
 				{
