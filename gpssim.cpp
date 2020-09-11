@@ -497,8 +497,7 @@ int main(int argc, char *argv[])
 	gpstime_t g0;
 	
 	double llh[3];
-	
-	int i;
+
 	channel_t chan[MAX_CHAN];
 	double elvmask = 0.0; // in degree
 
@@ -780,7 +779,7 @@ int main(int argc, char *argv[])
 			// Overwrite the TOC and TOE to the scenario start time
 			for (sv=0; sv<MAX_SAT; sv++)
 			{
-				for (i=0; i<neph; i++)
+				for (int i = 0; i < neph; i++)
 				{
 					if (eph[i][sv].vflg == 1)
 					{
@@ -823,7 +822,7 @@ int main(int argc, char *argv[])
 	// Select the current set of ephemerides
 	ieph = -1;
 
-	for (i=0; i<neph; i++)
+	for (int i = 0; i < neph; i++)
 	{
 		for (sv=0; sv<MAX_SAT; sv++)
 		{
@@ -853,12 +852,14 @@ int main(int argc, char *argv[])
 	////////////////////////////////////////////////////////////
 
 	// Clear all channels
-	for (i=0; i<MAX_CHAN; i++)
+	for (int i = 0; i < MAX_CHAN; i++) {
 		chan[i].prn = 0;
+    }
 
 	// Clear satellite allocation flag
-	for (sv=0; sv<MAX_SAT; sv++)
+	for (sv=0; sv<MAX_SAT; sv++) {
 		allocatedSat[sv] = -1;
+    }
 
 	// Initial reception time
 	grx = incGpsTime(g0, 0.0);
@@ -866,7 +867,7 @@ int main(int argc, char *argv[])
 	// Allocate visible satellites
 	allocateChannel(chan, eph[ieph], ionoutc, grx, xyz[0], elvmask);
 
-	for(i=0; i<MAX_CHAN; i++)
+	for(int i = 0; i < MAX_CHAN; i++)
 	{
 		if (chan[i].prn>0)
 			fprintf(stderr, "%02d %6.1f %5.1f %11.1f %5.1f\n", chan[i].prn, 
@@ -911,7 +912,7 @@ int main(int argc, char *argv[])
         // Per-channel gain, maximum value of 1.
         double gain[MAX_CHAN];
 
-		for (i=0; i<MAX_CHAN; i++)
+		for (int i = 0; i < MAX_CHAN; i++)
 		{
 			if (chan[i].prn>0)
 			{
@@ -945,7 +946,7 @@ int main(int argc, char *argv[])
 			double i_acc = 0;
 			double q_acc = 0;
 
-			for (i=0; i<MAX_CHAN; i++)
+			for (int i = 0; i < MAX_CHAN; i++)
 			{
 				if (chan[i].prn>0)
 				{
@@ -1014,7 +1015,7 @@ int main(int argc, char *argv[])
 		if (igrx % 300 == 0) // Every 30 seconds
 		{
 			// Update navigation message
-			for (i=0; i<MAX_CHAN; i++)
+			for (int i = 0; i < MAX_CHAN; i++)
 			{
 				if (chan[i].prn>0)
 					generateNavMsg(grx, &chan[i], 0);
@@ -1031,7 +1032,7 @@ int main(int argc, char *argv[])
 					{
 						ieph++;
 
-						for (i=0; i<MAX_CHAN; i++)
+						for (int i = 0; i < MAX_CHAN; i++)
 						{
 							// Generate new subframes if allocated
 							if (chan[i].prn!=0) 
@@ -1053,7 +1054,7 @@ int main(int argc, char *argv[])
 			if (verb==true)
 			{
 				fprintf(stderr, "\n");
-				for (i=0; i<MAX_CHAN; i++)
+				for (int i = 0; i < MAX_CHAN; i++)
 				{
 					if (chan[i].prn>0)
 						fprintf(stderr, "%02d %6.1f %5.1f %11.1f %5.1f\n", chan[i].prn,
