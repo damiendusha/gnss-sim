@@ -520,7 +520,7 @@ int main(int argc, char *argv[])
 	gpstime_t gmin,gmax;
 	double dt;
 
-	bool verb = false;
+	bool verbose = false;
 
     // Overwrite the TOC and TOE in the RINEX file.
 	bool timeoverwrite = false;
@@ -627,7 +627,7 @@ int main(int argc, char *argv[])
 			ionoutc.enable = false; // Disable ionospheric correction
 			break;
 		case 'v':
-			verb = true;
+			verbose = true;
 			break;
 		case ':':
 		case '?':
@@ -719,7 +719,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if ((verb==true)&&(ionoutc.vflg==true))
+	if (verbose && (ionoutc.vflg==true))
 	{
 		fprintf(stderr, "  %12.3e %12.3e %12.3e %12.3e\n", 
 			ionoutc.alpha0, ionoutc.alpha1, ionoutc.alpha2, ionoutc.alpha3);
@@ -1048,8 +1048,8 @@ int main(int argc, char *argv[])
 			else
 				allocateChannel(chan, eph[ieph], ionoutc, grx, xyz[0], elvmask);
 
-			// Show ditails about simulated channels
-			if (verb==true)
+			// Show details about simulated channels
+			if (verbose)
 			{
 				fprintf(stderr, "\n");
 				for (int i = 0; i < MAX_CHAN; i++)
