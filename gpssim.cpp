@@ -519,7 +519,6 @@ int main(int argc, char *argv[])
 	datetime_t t0,tmin,tmax;
 	gpstime_t gmin,gmax;
 	double dt;
-	int igrx;
 
 	bool verb = false;
 
@@ -1010,7 +1009,7 @@ int main(int argc, char *argv[])
 		// Update navigation message and channel allocation every 30 seconds
 		//
 
-		igrx = (int)(grx.sec*10.0+0.5);
+        const int igrx = (int)(grx.sec*10.0+0.5);
 
 		if (igrx % 300 == 0) // Every 30 seconds
 		{
