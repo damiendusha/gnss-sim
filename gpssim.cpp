@@ -47,23 +47,23 @@ void codegen(int *ca, int prn)
 	
 	int g1[CA_SEQ_LEN], g2[CA_SEQ_LEN];
 	int r1[N_DWRD_SBF], r2[N_DWRD_SBF];
-	int c1, c2;
-	int i,j;
 
-	if (prn<1 || prn>32)
+	if (prn < 1 || prn > 32) {
 		return;
+    }
 
-	for (i=0; i<N_DWRD_SBF; i++)
+	for (int i = 0; i < N_DWRD_SBF; i++) {
 		r1[i] = r2[i] = -1;
+    }
 
-	for (i=0; i<CA_SEQ_LEN; i++)
+	for (int i = 0; i < CA_SEQ_LEN; i++)
 	{
 		g1[i] = r1[9];
 		g2[i] = r2[9];
-		c1 = r1[2]*r1[9];
-		c2 = r2[1]*r2[2]*r2[5]*r2[7]*r2[8]*r2[9];
+		int c1 = r1[2]*r1[9];
+		int c2 = r2[1]*r2[2]*r2[5]*r2[7]*r2[8]*r2[9];
 
-		for (j=9; j>0; j--) 
+		for (int j = 9; j > 0; j--) 
 		{
 			r1[j] = r1[j-1];
 			r2[j] = r2[j-1];
@@ -72,17 +72,16 @@ void codegen(int *ca, int prn)
 		r2[0] = c2;
 	}
 
-	for (i=0,j=CA_SEQ_LEN-delay[prn-1]; i<CA_SEQ_LEN; i++,j++)
+	for (int i = 0, j = CA_SEQ_LEN-delay[prn-1]; i < CA_SEQ_LEN; i++,j++) {
 		ca[i] = (1-g1[i]*g2[j%CA_SEQ_LEN])/2;
-	
+    }
+
 	return;
 }
 
 
 double ionosphericDelay(const ionoutc_t *ionoutc, gpstime_t g, double *llh, double *azel)
 {
-	double iono_delay = 0.0;
-
 	if (ionoutc->enable==false)
 		return (0.0); // No ionospheric delay
 
@@ -93,6 +92,7 @@ double ionosphericDelay(const ionoutc_t *ionoutc, gpstime_t g, double *llh, doub
 	// Obliquity factor
 	const double F = 1.0 + 16.0*pow((0.53 - E),3.0);
 
+    double iono_delay = 0.0;
 	if (ionoutc->vflg==false) {
 		iono_delay = F*5.0e-9*SPEED_OF_LIGHT;
     }
@@ -150,7 +150,7 @@ double ionosphericDelay(const ionoutc_t *ionoutc, gpstime_t g, double *llh, doub
 			iono_delay = F*5.0e-9*SPEED_OF_LIGHT;
 	}
 
-	return (iono_delay);
+	return iono_delay;
 }
 
 /*! \brief Compute range between a satellite and the receiver
