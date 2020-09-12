@@ -79,10 +79,10 @@ void codegen(int *ca, int prn)
 }
 
 
-double ionosphericDelay(const ionoutc_t *ionoutc, gpstime_t g, double *llh, double *azel)
+double ionosphericDelay(const ionoutc_t &ionoutc, gpstime_t g, double *llh, double *azel)
 {
-	if (ionoutc->enable==false)
-		return (0.0); // No ionospheric delay
+	if (ionoutc.enable==false)
+		return 0; // No ionospheric delay
 
 	const double E = azel[1]/PI;
 	const double phi_u = llh[0]/PI;
@@ -92,7 +92,7 @@ double ionosphericDelay(const ionoutc_t *ionoutc, gpstime_t g, double *llh, doub
 	const double F = 1.0 + 16.0*pow((0.53 - E),3.0);
 
     double iono_delay = 0.0;
-	if (ionoutc->vflg==false) {
+	if (ionoutc.vflg==false) {
 		iono_delay = F*5.0e-9*SPEED_OF_LIGHT;
     }
 	else
@@ -103,7 +103,7 @@ double ionosphericDelay(const ionoutc_t *ionoutc, gpstime_t g, double *llh, doub
 		
 		// Geodetic latitude of the earth projection of the ionospheric intersection point
 		// (semi-circles)
-		double phi_i = phi_u + psi*cos(azel[0]);
+		double phi_i = phi_u + psi * std::cos(azel[0]);
 		if(phi_i>0.416)
 			phi_i = 0.416;
 		else if(phi_i<-0.416)
@@ -111,21 +111,21 @@ double ionosphericDelay(const ionoutc_t *ionoutc, gpstime_t g, double *llh, doub
 
 		// Geodetic longitude of the earth projection of the ionospheric intersection point
 		// (semi-circles)
-		const double lam_i = lam_u + psi*sin(azel[0])/cos(phi_i*PI);
+		const double lam_i = lam_u + psi* std::sin(azel[0]) / std::cos(phi_i*PI);
 
 		// Geomagnetic latitude of the earth projection of the ionospheric intersection
 		// point (mean ionospheric height assumed 350 km) (semi-circles)
-		const double phi_m = phi_i + 0.064*cos((lam_i - 1.617)*PI);
+		const double phi_m = phi_i + 0.064 * std::cos((lam_i - 1.617)*PI);
 		const double phi_m2 = phi_m*phi_m;
 		const double phi_m3 = phi_m2*phi_m;
 
-		double AMP = ionoutc->alpha0 + ionoutc->alpha1*phi_m
-			+ ionoutc->alpha2*phi_m2 + ionoutc->alpha3*phi_m3;
+		double AMP = ionoutc.alpha0 + ionoutc.alpha1*phi_m
+			+ ionoutc.alpha2*phi_m2 + ionoutc.alpha3*phi_m3;
 		if (AMP<0.0)
 			AMP = 0.0;
 
-		double PER = ionoutc->beta0 + ionoutc->beta1*phi_m
-			+ ionoutc->beta2*phi_m2 + ionoutc->beta3*phi_m3;
+		double PER = ionoutc.beta0 + ionoutc.beta1*phi_m
+			+ ionoutc.beta2*phi_m2 + ionoutc.beta3*phi_m3;
 		if (PER<72000.0)
 			PER = 72000.0;
 
@@ -139,7 +139,7 @@ double ionosphericDelay(const ionoutc_t *ionoutc, gpstime_t g, double *llh, doub
 		// Phase (radians)
 		const double X = 2.0*PI*(t - 50400.0)/PER;
 
-		if(fabs(X)<1.57)
+		if (std::fabs(X)<1.57)
 		{
 			const double X2 = X*X;
 			const double X4 = X2*X2;
@@ -158,7 +158,7 @@ double ionosphericDelay(const ionoutc_t *ionoutc, gpstime_t g, double *llh, doub
  *  \param[in] g GPS time at time of receiving the signal
  *  \param[in] xyz position of the receiver
  */
-void computeRange(range_t *rho, const ephem_t &eph, const ionoutc_t *ionoutc, 
+void computeRange(range_t *rho, const ephem_t &eph, const ionoutc_t &ionoutc, 
                   gpstime_t g, double xyz[])
 {
 	double pos[3],vel[3],clk[2];
@@ -385,13 +385,13 @@ int allocateChannel(channel_t *chan, ephem_t *eph, ionoutc_t ionoutc,
 
 						// Initialize pseudorange
                         range_t rho;
-						computeRange(&rho, eph[sv], &ionoutc, grx, xyz);
+						computeRange(&rho, eph[sv], ionoutc, grx, xyz);
 						chan[i].rho0 = rho;
 
 						// Initialize carrier phase
 						const double r_xyz = rho.range;
 
-						computeRange(&rho, eph[sv], &ionoutc, grx, ref);
+						computeRange(&rho, eph[sv], ionoutc, grx, ref);
 						const double r_ref = rho.range;
 
 						const double phase_ini = (2.0*r_ref - r_xyz)/LAMBDA_L1;
@@ -816,7 +816,7 @@ int main(int argc, char *argv[])
 				const int sv = chan[i].prn-1;
 
 				// Current pseudorange
-				computeRange(&rho, eph[ieph][sv], &ionoutc, grx, xyz[0]);
+				computeRange(&rho, eph[ieph][sv], ionoutc, grx, xyz[0]);
 
 				chan[i].azel[0] = rho.azel[0];
 				chan[i].azel[1] = rho.azel[1];

@@ -263,7 +263,7 @@ unsigned long computeChecksum(unsigned long source, int nib)
 }
 
 /*! \brief Count number of bits set to 1
- *  \param[in] v long word in whihc bits are counted
+ *  \param[in] v long word in which bits are counted
  *  \returns Count of bits set to 1
  */
 unsigned long countBits(unsigned long v)
