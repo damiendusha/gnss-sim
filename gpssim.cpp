@@ -337,7 +337,7 @@ int generateNavMsg(gpstime_t g, channel_t *chan, int init)
 	return(1);
 }
 
-int checkSatVisibility(ephem_t eph, gpstime_t g, double *xyz, double elvMask, double *azel)
+bool checkSatVisibility(ephem_t eph, gpstime_t g, double *xyz, double elvMask, double *azel)
 {
 	double llh[3],neu[3];
 	double pos[3],vel[3],clk[3],los[3];
@@ -354,10 +354,7 @@ int checkSatVisibility(ephem_t eph, gpstime_t g, double *xyz, double elvMask, do
 	ecef2neu(los, tmat, neu);
 	neu2azel(azel, neu);
 
-	if (azel[1]*R2D > elvMask)
-		return (1); // Visible
-	// else
-	return (0); // Invisible
+	return (azel[1] * R2D > elvMask);
 }
 
 int allocateChannel(channel_t *chan, ephem_t *eph, ionoutc_t ionoutc, 
@@ -370,7 +367,7 @@ int allocateChannel(channel_t *chan, ephem_t *eph, ionoutc_t ionoutc,
 
 	for (int sv = 0; sv < MAX_SAT; sv++)
 	{
-		if (checkSatVisibility(eph[sv], grx, xyz, 0.0, azel)==1)
+		if (checkSatVisibility(eph[sv], grx, xyz, 0.0, azel))
 		{
 			num_visible_sats++;
 
