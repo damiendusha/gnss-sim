@@ -536,7 +536,7 @@ int main(int argc, char *argv[])
 				t0.mm = gmt->tm_min;
 				t0.sec = (double)gmt->tm_sec;
 
-				date2gps(&t0, &g0);
+				g0 = date2gps(t0);
 			}
 			break;
 		case 't':
@@ -548,7 +548,7 @@ int main(int argc, char *argv[])
 				exit(1);
 			}
 			t0.sec = floor(t0.sec);
-			date2gps(&t0, &g0);
+			g0 = date2gps(t0);
 			break;
 		case 'd':
 			duration = atof(optarg);
@@ -659,7 +659,6 @@ int main(int argc, char *argv[])
 		if (timeoverwrite==true)
 		{
 			gpstime_t gtmp;
-			datetime_t ttmp;
 			double dsec;
 
 			gtmp.week = g0.week;
@@ -679,7 +678,7 @@ int main(int argc, char *argv[])
 					if (eph[i][sv].valid)
 					{
 						gtmp = incGpsTime(eph[i][sv].toc, dsec);
-						gps2date(&gtmp,&ttmp);
+						const datetime_t ttmp = gps2date(gtmp);
 						eph[i][sv].toc = gtmp;
 						eph[i][sv].t = ttmp;
 

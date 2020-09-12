@@ -10,6 +10,7 @@
 #pragma once
 
 #include "gpssim.h"
+#include "gps_time.h"
 
 /*! \brief Structure representing ephemeris of a single satellite */
 struct ephem_t

@@ -10,53 +10,64 @@
 #include "gps_time.h"
 
 #include <cmath>
+#include <array>
+
+namespace {
+
+static constexpr double SECONDS_IN_WEEK = 604800.0;
+static constexpr double SECONDS_IN_HALF_WEEK = 302400.0;
+static constexpr double SECONDS_IN_DAY = 86400.0;
+static constexpr double SECONDS_IN_HOUR = 3600.0;
+static constexpr double SECONDS_IN_MINUTE = 60.0;
+
+}
 
 /*! \brief Convert a UTC date into a GPS date
  *  \param[in] t input date in UTC form
  *  \param[out] g output date in GPS form
  */
-void date2gps(const datetime_t *t, gpstime_t *g)
+gpstime_t date2gps(const datetime_t &t)
 {
-	int doy[12] = {0,31,59,90,120,151,181,212,243,273,304,334};
-	int ye;
-	int de;
-	int lpdays;
+	constexpr std::array<int, 12> doy = {
+        0,31,59,90,120,151,181,212,243,273,304,334};
 
-	ye = t->y - 1980;
+	const int ye = t.y - 1980;
 
 	// Compute the number of leap days since Jan 5/Jan 6, 1980.
-	lpdays = ye/4 + 1;
-	if ((ye%4)==0 && t->m<=2)
+	int lpdays = ye/4 + 1;
+	if ((ye%4)==0 && t.m<=2)
 		lpdays--;
 
 	// Compute the number of days elapsed since Jan 5/Jan 6, 1980.
-	de = ye*365 + doy[t->m-1] + t->d + lpdays - 6;
+	const int de = ye*365 + doy[t.m-1] + t.d + lpdays - 6;
 
 	// Convert time to GPS weeks and seconds.
-	g->week = de / 7;
-	g->sec = (double)(de%7)*SECONDS_IN_DAY + t->hh*SECONDS_IN_HOUR 
-		+ t->mm*SECONDS_IN_MINUTE + t->sec;
+    gpstime_t g;
+	g.week = de / 7;
+	g.sec = (double)(de%7)*SECONDS_IN_DAY + t.hh*SECONDS_IN_HOUR 
+		+ t.mm*SECONDS_IN_MINUTE + t.sec;
 
-	return;
+	return g;
 }
 
-void gps2date(const gpstime_t *g, datetime_t *t)
+datetime_t gps2date(const gpstime_t &g)
 {
 	// Convert Julian day number to calendar date
-	int c = (int)(7*g->week + floor(g->sec/86400.0)+2444245.0) + 1537;
-	int d = (int)((c-122.1)/365.25);
-	int e = 365*d + d/4;
-	int f = (int)((c-e)/30.6001);
+	const int c = (int)(7*g.week + std::floor(g.sec/86400.0)+2444245.0) + 1537;
+	const int d = (int)((c-122.1)/365.25);
+	const int e = 365*d + d/4;
+	const int f = (int)((c-e)/30.6001);
 
-	t->d = c - e - (int)(30.6001*f);
-	t->m = f - 1 - 12*(f/14);
-	t->y = d - 4715 - ((7 + t->m)/10);
+    datetime_t t;
+	t.d = c - e - (int)(30.6001*f);
+	t.m = f - 1 - 12*(f/14);
+	t.y = d - 4715 - ((7 + t.m)/10);
 
-	t->hh = ((int)(g->sec/3600.0))%24;
-	t->mm = ((int)(g->sec/60.0))%60;
-	t->sec = g->sec - 60.0*floor(g->sec/60.0);
+	t.hh = ((int)(g.sec/3600.0))%24;
+	t.mm = ((int)(g.sec/60.0))%60;
+	t.sec = g.sec - 60.0*floor(g.sec/60.0);
 
-	return;
+	return t;
 }
 
 double subGpsTime(gpstime_t g1, gpstime_t g0)

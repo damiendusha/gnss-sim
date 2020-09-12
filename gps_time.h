@@ -9,9 +9,25 @@
 
 #pragma once
 
-#include "gpssim.h"
+/*! \brief Structure representing GPS time */
+struct gpstime_t
+{
+    int week;	/*!< GPS week number (since January 1980) */
+    double sec; 	/*!< second inside the GPS \a week */
+};
 
-void date2gps(const datetime_t *t, gpstime_t *g);
-void gps2date(const gpstime_t *g, datetime_t *t);
+/*! \brief Structure representing UTC time */
+struct datetime_t
+{
+	int y; 		/*!< Calendar year */
+	int m;		/*!< Calendar month */
+	int d;		/*!< Calendar day */
+	int hh;		/*!< Calendar hour */
+	int mm;		/*!< Calendar minutes */
+	double sec;	/*!< Calendar seconds */
+};
+
+gpstime_t date2gps(const datetime_t &t);
+datetime_t gps2date(const gpstime_t &g);
 gpstime_t incGpsTime(gpstime_t g0, double dt);
 double subGpsTime(gpstime_t g1, gpstime_t g0);

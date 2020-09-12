@@ -11,9 +11,7 @@
 #define GPSSIM_H
 
 #include "geodesy.h"
-
-/*! \brief Maximum length of a line in a text file (RINEX, motion) */
-#define MAX_CHAR (100)
+#include "gps_time.h"
 
 /*! \brief Maximum number of satellites in RINEX file */
 #define MAX_SAT (32)
@@ -62,24 +60,6 @@
 #define CARR_TO_CODE (1.0/1540.0)
 
 #define EPHEM_ARRAY_SIZE (13) // for daily GPS broadcast ephemers file (brdc)
-
-/*! \brief Structure representing GPS time */
-struct gpstime_t
-{
-	int week;	/*!< GPS week number (since January 1980) */
-	double sec; 	/*!< second inside the GPS \a week */
-};
-
-/*! \brief Structure repreenting UTC time */
-struct datetime_t
-{
-	int y; 		/*!< Calendar year */
-	int m;		/*!< Calendar month */
-	int d;		/*!< Calendar day */
-	int hh;		/*!< Calendar hour */
-	int mm;		/*!< Calendar minutes */
-	double sec;	/*!< Calendar seconds */
-};
 
 struct ionoutc_t
 {

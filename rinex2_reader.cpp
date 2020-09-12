@@ -18,6 +18,9 @@
 #include <cmath>
 
 namespace {
+    
+/*! \brief Maximum length of a line in a text file (RINEX, motion) */
+static constexpr int MAX_CHAR = 100;
 
 /*! \brief Replace all 'E' exponential designators to 'D'
  *  \param str String in which all occurrences of 'E' are replaced with *  'D'
@@ -204,7 +207,7 @@ int readRinexNavAll(ephem_t eph[][MAX_SAT], ionoutc_t *ionoutc,
 		tmp[2] = 0;
 		t.sec = atof(tmp);
 
-		date2gps(&t, &g);
+		g = date2gps(t);
 		
 		if (g0.week==-1)
 			g0 = g;
