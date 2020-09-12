@@ -20,6 +20,7 @@ add_executable(gnss_sim
     gps_subframe.cpp
     gps_time.cpp
     geodesy.cpp
+    ionosphere.cpp
     rinex2_reader.cpp
     sample_writer.cpp
     satellite_gain.cpp

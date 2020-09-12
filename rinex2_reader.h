@@ -11,11 +11,12 @@
 
 #include "gpssim.h"
 #include "gps_ephem.h"
+#include "ionosphere.h"
 
 #include <string>
 
-/*! \brief Read Ephemeris data from the RINEX Navigation file */
-/*  \param[out] eph Array of Output SV ephemeris data
+/*! \brief Read Ephemeris data from the RINEX Navigation file
+ *  \param[out] eph Array of Output SV ephemeris data
  *  \param[in] fname File name of the RINEX file
  *  \returns Number of sets of ephemerides in the file
  */

@@ -11,6 +11,7 @@
 
 #include "gpssim.h"
 #include "gps_ephem.h"
+#include "ionosphere.h"
 
 /*! \brief Compute Subframe from Ephemeris
  *  \param[in] eph Ephemeris of given SV

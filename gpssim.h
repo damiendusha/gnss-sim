@@ -36,7 +36,6 @@
 
 #define SECONDS_IN_WEEK 604800.0
 #define SECONDS_IN_HALF_WEEK 302400.0
-#define SECONDS_IN_DAY 86400.0
 #define SECONDS_IN_HOUR 3600.0
 #define SECONDS_IN_MINUTE 60.0
 
@@ -59,17 +58,6 @@
 #define CARR_TO_CODE (1.0/1540.0)
 
 #define EPHEM_ARRAY_SIZE (13) // for daily GPS broadcast ephemers file (brdc)
-
-struct ionoutc_t
-{
-	bool enable;
-	int vflg;
-	double alpha0,alpha1,alpha2,alpha3;
-	double beta0,beta1,beta2,beta3;
-	double A0,A1;
-	int dtls,tot,wnt;
-	int dtlsf,dn,wnlsf;
-};
 
 struct range_t
 {
