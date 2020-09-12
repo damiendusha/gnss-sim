@@ -11,6 +11,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 project(gnss_sim)
 
+find_package (Eigen3 3.3 REQUIRED NO_MODULE)
+
 add_executable(gnss_sim 
     gpssim.cpp
     antenna_gain.cpp
@@ -23,7 +25,7 @@ add_executable(gnss_sim
     satellite_gain.cpp
 )
 
-target_link_libraries(gnss_sim m)
+target_link_libraries(gnss_sim m Eigen3::Eigen)
 
 target_compile_options(gnss_sim PRIVATE -O3 -march=native -Wall -Wextra)
 

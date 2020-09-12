@@ -51,7 +51,6 @@
 #define R2D 57.2957795131
 
 #define SPEED_OF_LIGHT 2.99792458e8
-#define LAMBDA_L1 0.190293672798365
 
 /*! \brief GPS L1 Carrier frequency */
 #define CARR_FREQ (1575.42e6)
@@ -85,8 +84,8 @@ struct range_t
 /*! \brief Structure representing a Channel */
 struct channel_t
 {
-	int prn;	/*< PRN Number */
-	int ca[CA_SEQ_LEN]; /*< C/A Sequence */
+	int prn;	              /*< PRN Number */
+	int ca[CA_SEQ_LEN];       /*< C/A Sequence */
 	double f_carr;	/*< Carrier frequency */
 	double f_code;	/*< Code frequency */
 	double carr_phase;

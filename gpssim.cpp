@@ -28,6 +28,10 @@
 #include <cmath>
 #include <ctime>
 
+namespace {
+    
+static constexpr double kWavelengthGpsL1ca_m = 0.190293672798365;
+}
 
 /* !\brief generate the C/A code sequence for a given Satellite Vehicle PRN
  *  \param[in] prn PRN nuber of the Satellite Vehicle
@@ -119,12 +123,12 @@ double ionosphericDelay(const ionoutc_t &ionoutc, gpstime_t g, double *llh,
 
 		double AMP = ionoutc.alpha0 + ionoutc.alpha1*phi_m
 			+ ionoutc.alpha2*phi_m2 + ionoutc.alpha3*phi_m3;
-		if (AMP<0.0)
+		if (AMP < 0.0)
 			AMP = 0.0;
 
 		double PER = ionoutc.beta0 + ionoutc.beta1*phi_m
 			+ ionoutc.beta2*phi_m2 + ionoutc.beta3*phi_m3;
-		if (PER<72000.0)
+		if (PER < 72000.0)
 			PER = 72000.0;
 
 		// Local time (sec)
@@ -225,7 +229,7 @@ void computeCodePhase(channel_t *chan, const range_t &rho1, const double dt)
 	const double rhorate = (rho1.range - chan->rho0.range)/dt;
 
 	// Carrier and code frequency.
-	chan->f_carr = -rhorate/LAMBDA_L1;
+	chan->f_carr = -rhorate * (1.0 / kWavelengthGpsL1ca_m);
 	chan->f_code = CODE_FREQ + chan->f_carr*CARR_TO_CODE;
 
 	// Initial code phase and data bit counters.
@@ -393,7 +397,8 @@ int allocateChannel(channel_t *chan, ephem_t *eph, int* allocatedSat, ionoutc_t 
 						computeRange(&rho, eph[sv], ionoutc, grx, ref);
 						const double r_ref = rho.range;
 
-						const double phase_ini = (2.0*r_ref - r_xyz)/LAMBDA_L1;
+						const double phase_ini = 
+                                (2.0*r_ref - r_xyz) * (1.0 / kWavelengthGpsL1ca_m);
 						chan[i].carr_phase = phase_ini - floor(phase_ini);
 
 						// Done.
