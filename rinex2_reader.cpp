@@ -47,7 +47,8 @@ int replaceExpDesignator(char *str, int len)
  *  \param[in] fname File name of the RINEX file
  *  \returns Number of sets of ephemerides in the file
  */
-int readRinexNavAll(ephem_t eph[][MAX_SAT], ionoutc_t *ionoutc, const char *fname)
+int readRinexNavAll(ephem_t eph[][MAX_SAT], ionoutc_t *ionoutc,
+    const std::string &rinex_filename)
 {
 	FILE *fp;
 	int ieph;
@@ -63,7 +64,7 @@ int readRinexNavAll(ephem_t eph[][MAX_SAT], ionoutc_t *ionoutc, const char *fnam
 
 	int flags = 0x0;
 
-	if (NULL==(fp=fopen(fname, "rt")))
+	if (NULL==(fp=fopen(rinex_filename.c_str(), "rt")))
 		return(-1);
 
 	// Clear valid flag

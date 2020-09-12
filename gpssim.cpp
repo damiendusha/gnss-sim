@@ -158,7 +158,8 @@ double ionosphericDelay(const ionoutc_t *ionoutc, gpstime_t g, double *llh, doub
  *  \param[in] g GPS time at time of receiving the signal
  *  \param[in] xyz position of the receiver
  */
-void computeRange(range_t *rho, const ephem_t &eph, const ionoutc_t *ionoutc, gpstime_t g, double xyz[])
+void computeRange(range_t *rho, const ephem_t &eph, const ionoutc_t *ionoutc, 
+                  gpstime_t g, double xyz[])
 {
 	double pos[3],vel[3],clk[2];
 	double los[3];
@@ -220,7 +221,7 @@ void computeRange(range_t *rho, const ephem_t &eph, const ionoutc_t *ionoutc, gp
  *  \param[in] rho1 Current range, after \a dt has expired
  *  \param[in dt delta-t (time difference) in seconds
  */
-void computeCodePhase(channel_t *chan, range_t rho1, double dt)
+void computeCodePhase(channel_t *chan, const range_t &rho1, const double dt)
 {
 	// Pseudorange rate.
 	const double rhorate = (rho1.range - chan->rho0.range)/dt;
@@ -455,8 +456,7 @@ int main(int argc, char *argv[])
 
 	double xyz[USER_MOTION_SIZE][3];
 
-	char navfile[MAX_CHAR];
-
+    std::string rinex2_nav_file;
     std::string output_sample_filename = {"gpssim.bin"};
 
 	int result;
@@ -478,7 +478,6 @@ int main(int argc, char *argv[])
 	////////////////////////////////////////////////////////////
 
 	// Default options
-	navfile[0] = '\0';
 	double samp_freq = 2.6e6;
 	g0.week = -1; // Invalid start time
 	double duration = ((double) USER_MOTION_SIZE)/10.0; // Default duration
@@ -495,7 +494,7 @@ int main(int argc, char *argv[])
 		switch (result)
 		{
 		case 'e':
-			strcpy(navfile, optarg);
+            rinex2_nav_file.assign(optarg);
 			break;
 		case 'c':
 			// Static ECEF coordinates input mode
@@ -569,7 +568,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (navfile[0]==0)
+	if (rinex2_nav_file.empty())
 	{
 		fprintf(stderr, "ERROR: GPS ephemeris file is not specified.\n");
 		exit(1);
@@ -608,7 +607,7 @@ int main(int argc, char *argv[])
 	// Read ephemeris
 	////////////////////////////////////////////////////////////
 
-	neph = readRinexNavAll(eph, &ionoutc, navfile);
+	neph = readRinexNavAll(eph, &ionoutc, rinex2_nav_file);
 
 	if (neph==0)
 	{

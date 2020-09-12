@@ -12,10 +12,13 @@
 #include "gpssim.h"
 #include "gps_ephem.h"
 
+#include <string>
+
 /*! \brief Read Ephemeris data from the RINEX Navigation file */
 /*  \param[out] eph Array of Output SV ephemeris data
  *  \param[in] fname File name of the RINEX file
  *  \returns Number of sets of ephemerides in the file
  */
-int readRinexNavAll(ephem_t eph[][MAX_SAT], ionoutc_t *ionoutc, const char *fname);
+int readRinexNavAll(ephem_t eph[][MAX_SAT], ionoutc_t *ionoutc, 
+                    const std::string &rinex_filename);
 

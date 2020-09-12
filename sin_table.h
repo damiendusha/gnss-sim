@@ -18,7 +18,7 @@ class PeriodicFunctionTable
     explicit PeriodicFunctionTable(const std::function<double(double)> &func, 
                                    double amplitude)
     {
-        const double scale = 2 * M_PI / (kTableLength);
+        const double scale = 2.0 * M_PI / kTableLength;
         for (int i = 0; i < kTableLength; ++i) {
             const double angle_rad = scale * i;
             table_[i] = amplitude * func(angle_rad);
@@ -34,7 +34,7 @@ class PeriodicFunctionTable
     double LookupValue(double normalised_phase) const
     {
         const double raw_index = normalised_phase * table_.size();
-        int index = std::floor(raw_index);   
+        const int index = std::floor(raw_index);   
         return table_[index];
     }
 
