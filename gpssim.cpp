@@ -167,16 +167,16 @@ void computeCodePhase(channel_t *chan, const range_t &rho1, const double dt)
 	int ims = static_cast<int>(ms);
 	chan->code_phase = (ms-(double)ims)*CA_SEQ_LEN; // in chip
 
-	chan->iword = ims/600; // 1 word = 30 bits = 600 ms
-	ims -= chan->iword*600;
+	chan->initial_word = ims/600; // 1 word = 30 bits = 600 ms
+	ims -= chan->initial_word*600;
 			
-	chan->ibit = ims/20; // 1 bit = 20 code = 20 ms
-	ims -= chan->ibit*20;
+	chan->initial_bit = ims/20; // 1 bit = 20 code = 20 ms
+	ims -= chan->initial_bit*20;
 
-	chan->icode = ims; // 1 code = 1 ms
+	chan->initial_code = ims; // 1 code = 1 ms
 
-	chan->codeCA = chan->ca[(int)chan->code_phase]*2-1;
-	chan->dataBit = (int)((chan->dwrd[chan->iword]>>(29-chan->ibit)) & 0x1UL)*2-1;
+	chan->codeCA = chan->ComputeCodeChip();
+	chan->dataBit = chan->ComputeDataBit();
 
 	// Save current pseudorange
 	chan->rho0 = rho1;
@@ -274,7 +274,7 @@ bool checkSatVisibility(const ephem_t &eph, gpstime_t g, double *xyz,
 }
 
 int allocateChannel(channel_t *chan, ephem_t *eph, int* allocatedSat, ionoutc_t ionoutc, 
-                    gpstime_t grx, double *xyz, double elevation_mask_deg)
+                    gpstime_t current_simulation_time, double *xyz, double elevation_mask_deg)
 {
 	int num_visible_sats = 0;
 	AzimuthElevation azel;
@@ -283,7 +283,7 @@ int allocateChannel(channel_t *chan, ephem_t *eph, int* allocatedSat, ionoutc_t 
 
 	for (int sv = 0; sv < MAX_SAT; sv++)
 	{
-		if (checkSatVisibility(eph[sv], grx, xyz, elevation_mask_deg, azel))
+		if (checkSatVisibility(eph[sv], current_simulation_time, xyz, elevation_mask_deg, azel))
 		{
 			num_visible_sats++;
 
@@ -306,17 +306,17 @@ int allocateChannel(channel_t *chan, ephem_t *eph, int* allocatedSat, ionoutc_t 
 						eph2sbf(eph[sv], ionoutc, chan[i].sbf);
 
 						// Generate navigation message
-						generateNavMsg(grx, &chan[i], 1);
+						generateNavMsg(current_simulation_time, &chan[i], 1);
 
 						// Initialize pseudorange
                         range_t rho;
-						computeRange(&rho, eph[sv], ionoutc, grx, xyz);
+						computeRange(&rho, eph[sv], ionoutc, current_simulation_time, xyz);
 						chan[i].rho0 = rho;
 
 						// Initialize carrier phase
 						const double r_xyz = rho.range;
 
-						computeRange(&rho, eph[sv], ionoutc, grx, ref);
+						computeRange(&rho, eph[sv], ionoutc, current_simulation_time, ref);
 						const double r_ref = rho.range;
 
 						const double phase_ini = 
@@ -369,15 +369,15 @@ int main(int argc, char *argv[])
 	clock_t tstart,tend;
 
 	ephem_t eph[EPHEM_ARRAY_SIZE][MAX_SAT];
+
 	gpstime_t simulation_start_gps_time;
+    gpstime_t current_simulation_time;
 	
     // Default static location; Tokyo
 	GeodeticPosition llh = GeodeticPosition::FromDegrees(35.681298, 139.766247, 10.0);
 
 	channel_t chan[MAX_CHAN];
 	double elevation_mask_deg = 0.0;
-
-	gpstime_t grx;
 
 	double xyz[3];
 
@@ -616,10 +616,11 @@ int main(int argc, char *argv[])
     }
 
 	// Initial reception time
-	grx = incGpsTime(simulation_start_gps_time, 0.0);
+	current_simulation_time = incGpsTime(simulation_start_gps_time, 0.0);
 
 	// Allocate visible satellites
-	allocateChannel(chan, eph[ieph], allocatedSat, ionoutc, grx, xyz, elevation_mask_deg);
+	allocateChannel(chan, eph[ieph], allocatedSat, ionoutc, current_simulation_time, 
+                    xyz, elevation_mask_deg);
 
 	for(int i = 0; i < MAX_CHAN; i++)
 	{
@@ -636,10 +637,12 @@ int main(int argc, char *argv[])
 	tstart = clock();
 
 	// Update receiver time
-	grx = incGpsTime(grx, 0.1);
+	current_simulation_time = incGpsTime(current_simulation_time, 0.1);
     
-    PeriodicFunctionTable<double, 1024> sin_table([](double t) -> double {return std::sin(t);}, 1.0);
-    PeriodicFunctionTable<double, 1024> cos_table([](double t) -> double {return std::cos(t);}, 1.0);
+    PeriodicFunctionTable<double, 1024> sin_table(
+        [](double t) -> double {return std::sin(t);}, 1.0);
+    PeriodicFunctionTable<double, 1024> cos_table(
+        [](double t) -> double {return std::cos(t);}, 1.0);
     
     // Default all channels to a gain of 1.
     ConstellationGain constellation_gain;
@@ -677,7 +680,7 @@ int main(int argc, char *argv[])
 				const int sv = chan[i].prn-1;
 
 				// Current pseudorange
-				computeRange(&rho, eph[ieph][sv], ionoutc, grx, xyz);
+				computeRange(&rho, eph[ieph][sv], ionoutc, current_simulation_time, xyz);
 
 				chan[i].azel = rho.azel;
 
@@ -717,26 +720,26 @@ int main(int argc, char *argv[])
 					{
 						chan[i].code_phase -= CA_SEQ_LEN;
 
-						chan[i].icode++;
+						chan[i].initial_code++;
 					
-						if (chan[i].icode>=20) // 20 C/A codes = 1 navigation data bit
+						if (chan[i].initial_code>=20) // 20 C/A codes = 1 navigation data bit
 						{
-							chan[i].icode = 0;
-							chan[i].ibit++;
+							chan[i].initial_code = 0;
+							chan[i].initial_bit++;
 						
-							if (chan[i].ibit>=30) // 30 navigation data bits = 1 word
+							if (chan[i].initial_bit>=30) // 30 navigation data bits = 1 word
 							{
-								chan[i].ibit = 0;
-								chan[i].iword++;
+								chan[i].initial_bit = 0;
+								chan[i].initial_word++;
                             }
 
 							// Set new navigation data bit
-							chan[i].dataBit = (int)((chan[i].dwrd[chan[i].iword]>>(29-chan[i].ibit)) & 0x1UL)*2-1;
+							chan[i].dataBit = chan[i].ComputeDataBit();
 						}
 					}
 
 					// Set current code chip
-					chan[i].codeCA = chan[i].ca[(int)chan[i].code_phase]*2-1;
+					chan[i].codeCA = chan[i].ComputeCodeChip();
 
 					// Update carrier phase
 					chan[i].carr_phase += chan[i].f_carr * delt;
@@ -762,14 +765,14 @@ int main(int argc, char *argv[])
 		// Update navigation message and channel allocation every 30 seconds
 		//
 
-        const int igrx = (int)(grx.sec*10.0+0.5);
-		if (igrx % 300 == 0) // Every 30 seconds
+        const int icurrent_simulation_time = (int)(current_simulation_time.sec*10.0+0.5);
+		if (icurrent_simulation_time % 300 == 0) // Every 30 seconds
 		{
 			// Update navigation message
 			for (int i = 0; i < MAX_CHAN; i++)
 			{
 				if (chan[i].prn>0)
-					generateNavMsg(grx, &chan[i], 0);
+					generateNavMsg(current_simulation_time, &chan[i], 0);
 			}
 
 			// Refresh ephemeris and subframes
@@ -778,7 +781,7 @@ int main(int argc, char *argv[])
 			{
 				if (eph[ieph+1][sv].valid)
 				{
-					const double dt = subGpsTime(eph[ieph+1][sv].toc, grx);
+					const double dt = subGpsTime(eph[ieph+1][sv].toc, current_simulation_time);
 					if (dt < SECONDS_IN_HOUR)
 					{
 						ieph++;
@@ -795,7 +798,7 @@ int main(int argc, char *argv[])
 			}
 
 			// Update channel allocation
-			allocateChannel(chan, eph[ieph], allocatedSat, ionoutc, grx, xyz, elevation_mask_deg);
+			allocateChannel(chan, eph[ieph], allocatedSat, ionoutc, current_simulation_time, xyz, elevation_mask_deg);
 
 			// Show details about simulated channels
 			if (verbose)
@@ -812,10 +815,10 @@ int main(int argc, char *argv[])
 		}
 
 		// Update receiver time
-		grx = incGpsTime(grx, 0.1);
+		current_simulation_time = incGpsTime(current_simulation_time, 0.1);
 
 		// Update time counter
-		fprintf(stderr, "\rTime into run = %4.1f", subGpsTime(grx, simulation_start_gps_time));
+		fprintf(stderr, "\rTime into run = %4.1f", subGpsTime(current_simulation_time, simulation_start_gps_time));
 		fflush(stdout);
 	}
 

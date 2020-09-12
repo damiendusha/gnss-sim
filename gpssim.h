@@ -82,13 +82,21 @@ struct channel_t
 	gpstime_t g0;	/*!< GPS time at start */
 	unsigned long sbf[5][N_DWRD_SBF]; /*!< current subframe */
 	unsigned long dwrd[N_DWRD]; /*!< Data words of sub-frame */
-	int iword;	/*!< initial word */
-	int ibit;	/*!< initial bit */
-	int icode;	/*!< initial code */
+	int initial_word;	/*!< initial word */
+	int initial_bit;	/*!< initial bit */
+	int initial_code;	/*!< initial code */
 	int dataBit;	/*!< current data bit */
 	int codeCA;	/*!< current C/A code */
 	AzimuthElevation azel;
 	range_t rho0;
+
+    int ComputeDataBit() const {
+        return (int)((dwrd[initial_word] >> (29 - initial_bit)) & 0x1UL)*2 - 1;
+    }
+
+    int ComputeCodeChip() const {
+        return ca[(int) code_phase]*2-1;
+    }
 };
 
 #endif
