@@ -185,59 +185,54 @@ void computeCodePhase(channel_t *chan, const range_t &rho1, const double dt)
 }
 
 
-int generateNavMsg(gpstime_t g, channel_t *chan, int init)
+void generateNavMsg(gpstime_t g, channel_t *chan, int init)
 {
-	int iwrd,isbf;
-	gpstime_t simulation_start_gps_time;
-	unsigned long wn,tow;
-	unsigned sbfwrd;
-	unsigned long prevwrd;
-	int nib;
+	unsigned long previous_word = 0;
 
-	simulation_start_gps_time.week = g.week;
-	simulation_start_gps_time.sec = (double)(((unsigned long)(g.sec+0.5))/30UL) * 30.0; // Align with the full frame length = 30 sec
-	chan->g0 = simulation_start_gps_time; // Data bit reference time
+    // Align with the full frame length = 30 sec
+    gpstime_t g0;
+    g0.week = g.week;
+    g0.sec = (double)(((unsigned long)(g.sec+0.5))/30UL) * 30.0;
+    chan->g0 = g0; // Data bit reference time
 
-	wn = (unsigned long)(simulation_start_gps_time.week%1024);
-	tow = ((unsigned long)simulation_start_gps_time.sec)/6UL;
+    const unsigned long wn = (unsigned long)(g0.week%1024);
+    unsigned long tow = ((unsigned long)g0.sec)/6UL;
 
-	if (init==1) // Initialize subframe 5
+	if (init == 1) // Initialize subframe 5
 	{
-		prevwrd = 0UL;
-
-		for (iwrd=0; iwrd<N_DWRD_SBF; iwrd++)
+		for (int iwrd = 0; iwrd < N_DWRD_SBF; iwrd++)
 		{
-			sbfwrd = chan->sbf[4][iwrd];
+			unsigned int sbfwrd = chan->sbf[4][iwrd];
 
 			// Add TOW-count message into HOW
 			if (iwrd==1)
 				sbfwrd |= ((tow&0x1FFFFUL)<<13);
 
 			// Compute checksum
-			sbfwrd |= (prevwrd<<30) & 0xC0000000UL; // 2 LSBs of the previous transmitted word
-			nib = ((iwrd==1)||(iwrd==9))?1:0; // Non-information bearing bits for word 2 and 10
+			sbfwrd |= (previous_word<<30) & 0xC0000000UL; // 2 LSBs of the previous transmitted word
+			const int nib = ((iwrd==1)||(iwrd==9))?1:0; // Non-information bearing bits for word 2 and 10
 			chan->dwrd[iwrd] = computeChecksum(sbfwrd, nib);
 
-			prevwrd = chan->dwrd[iwrd];
+			previous_word = chan->dwrd[iwrd];
 		}
 	}
 	else // Save subframe 5
 	{
-		for (iwrd=0; iwrd<N_DWRD_SBF; iwrd++)
+		for (int iwrd = 0; iwrd < N_DWRD_SBF; iwrd++)
 		{
 			chan->dwrd[iwrd] = chan->dwrd[N_DWRD_SBF*N_SBF+iwrd];
 
-			prevwrd = chan->dwrd[iwrd];
+			previous_word = chan->dwrd[iwrd];
 		}
 	}
 
-	for (isbf=0; isbf<N_SBF; isbf++)
+	for (int isbf = 0; isbf < N_SBF; isbf++)
 	{
 		tow++;
 
-		for (iwrd=0; iwrd<N_DWRD_SBF; iwrd++)
+		for (int iwrd = 0; iwrd < N_DWRD_SBF; iwrd++)
 		{
-			sbfwrd = chan->sbf[isbf][iwrd];
+			unsigned int sbfwrd = chan->sbf[isbf][iwrd];
 
 			// Add transmission week number to Subframe 1
 			if ((isbf==0)&&(iwrd==2))
@@ -248,15 +243,13 @@ int generateNavMsg(gpstime_t g, channel_t *chan, int init)
 				sbfwrd |= ((tow&0x1FFFFUL)<<13);
 
 			// Compute checksum
-			sbfwrd |= (prevwrd<<30) & 0xC0000000UL; // 2 LSBs of the previous transmitted word
-			nib = ((iwrd==1)||(iwrd==9))?1:0; // Non-information bearing bits for word 2 and 10
+			sbfwrd |= (previous_word<<30) & 0xC0000000UL; // 2 LSBs of the previous transmitted word
+			const int nib = ((iwrd==1)||(iwrd==9))?1:0; // Non-information bearing bits for word 2 and 10
 			chan->dwrd[(isbf+1)*N_DWRD_SBF+iwrd] = computeChecksum(sbfwrd, nib);
 
-			prevwrd = chan->dwrd[(isbf+1)*N_DWRD_SBF+iwrd];
+			previous_word = chan->dwrd[(isbf+1)*N_DWRD_SBF+iwrd];
 		}
 	}
-
-	return(1);
 }
 
 bool checkSatVisibility(const ephem_t &eph, gpstime_t g, double *xyz, 
