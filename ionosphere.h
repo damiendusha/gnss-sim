@@ -16,7 +16,7 @@
 struct ionoutc_t
 {
 	bool enable;
-	int vflg;
+	bool valid;
 	double alpha0,alpha1,alpha2,alpha3;
 	double beta0,beta1,beta2,beta3;
 	double A0,A1;

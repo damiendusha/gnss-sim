@@ -30,7 +30,7 @@ double ionosphericDelay(const ionoutc_t &ionoutc, gpstime_t g, double *llh,
 	const double F = 1.0 + 16.0*pow((0.53 - E),3.0);
 
     double iono_delay = 0.0;
-	if (ionoutc.vflg==false) {
+	if (!ionoutc.valid) {
 		iono_delay = F*5.0e-9*SPEED_OF_LIGHT;
     }
 	else
@@ -83,8 +83,9 @@ double ionosphericDelay(const ionoutc_t &ionoutc, gpstime_t g, double *llh,
 			const double X4 = X2*X2;
 			iono_delay = F*(5.0e-9 + AMP*(1.0 - X2/2.0 + X4/24.0))*SPEED_OF_LIGHT;
 		}
-		else
+		else {
 			iono_delay = F*5.0e-9*SPEED_OF_LIGHT;
+        }
 	}
 
 	return iono_delay;

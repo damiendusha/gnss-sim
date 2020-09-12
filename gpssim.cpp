@@ -539,7 +539,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (verbose && (ionoutc.vflg==true))
+	if (verbose && ionoutc.valid)
 	{
 		fprintf(stderr, "  %12.3e %12.3e %12.3e %12.3e\n", 
 			ionoutc.alpha0, ionoutc.alpha1, ionoutc.alpha2, ionoutc.alpha3);

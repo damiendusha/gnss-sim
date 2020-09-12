@@ -164,9 +164,9 @@ int readRinexNavAll(ephem_t eph[][MAX_SAT], ionoutc_t *ionoutc,
 		}
 	}
 
-	ionoutc->vflg = false;
+	ionoutc->valid = false;
 	if (flags==0xF) // Read all Iono/UTC lines
-		ionoutc->vflg = true;
+		ionoutc->valid = true;
 
 	// Read ephemeris blocks
 	g0.week = -1;

@@ -32,7 +32,7 @@ static constexpr double POW2_M24 = 5.960464477539063e-008;
  *  \param[in] eph Ephemeris of given SV
  *  \param[out] sbf Array of five sub-frames, 10 long words each
  */
-void eph2sbf(const ephem_t &eph, const ionoutc_t ionoutc, unsigned long sbf[5][N_DWRD_SBF])
+void eph2sbf(const ephem_t &eph, const ionoutc_t &ionoutc, unsigned long sbf[5][N_DWRD_SBF])
 {
 	unsigned long wn;
 	unsigned long toe;
@@ -164,7 +164,7 @@ void eph2sbf(const ephem_t &eph, const ionoutc_t ionoutc, unsigned long sbf[5][N
 	sbf[2][8] = (omgdot&0xFFFFFFUL)<<6;
 	sbf[2][9] = ((iode&0xFFUL)<<22) | ((idot&0x3FFFUL)<<8);
 
-	if (ionoutc.vflg)
+	if (ionoutc.valid)
 	{
 		// Subframe 4, page 18
 		sbf[3][0] = 0x8B0000UL<<6;
