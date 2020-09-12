@@ -31,9 +31,9 @@ AntennaGain::AntennaGain()
     }
 }
 
-double AntennaGain::ComputeAntennaGain(double azel_rad[2]) const
+double AntennaGain::ComputeAntennaGain(const AzimuthElevation &azel) const
 {
-    // Receiver antenna gain
-	const int ibs = (int)((90.0-azel_rad[1]*R2D)/5.0); // convert elevation to boresight.
-    return gain_pattern_boresight_[ibs];
+    // Convert elevation to boresight.
+    const int boresight_index = (int)((90.0 - azel.elevation_deg()) / 5.0);
+    return gain_pattern_boresight_[boresight_index >= 0 ? boresight_index : 0];
 }

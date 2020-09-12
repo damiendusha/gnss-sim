@@ -10,6 +10,8 @@
 #ifndef GPSSIM_H
 #define GPSSIM_H
 
+#include "geodesy.h"
+
 /*! \brief Maximum length of a line in a text file (RINEX, motion) */
 #define MAX_CHAR (100)
 
@@ -96,7 +98,7 @@ struct range_t
 	double range; // pseudorange
 	double rate;
 	double d; // geometric distance
-	double azel[2];
+	AzimuthElevation azel;
 	double iono_delay;
 };
 
@@ -117,7 +119,7 @@ struct channel_t
 	int icode;	/*!< initial code */
 	int dataBit;	/*!< current data bit */
 	int codeCA;	/*!< current C/A code */
-	double azel[2];
+	AzimuthElevation azel;
 	range_t rho0;
 };
 

@@ -129,16 +129,14 @@ void ecef2neu(const double *xyz, double t[3][3], double *neu)
 	return;
 }
 
-void neu2azel(double *azel, const double *neu)
+AzimuthElevation neu2azel(const double *neu)
 {
-	double ne;
+	double azimuth_rad = std::atan2(neu[1],neu[0]);
+	if (azimuth_rad < 0.0)
+		azimuth_rad += 2.0*PI;
+    
+	const double ne = std::hypot(neu[0], neu[1]);
+	const double elevation_rad = std::atan2(neu[2], ne);
 
-	azel[0] = atan2(neu[1],neu[0]);
-	if (azel[0]<0.0)
-		azel[0] += (2.0*PI);
-
-	ne = sqrt(neu[0]*neu[0] + neu[1]*neu[1]);
-	azel[1] = atan2(neu[2], ne);
-
-	return;
+    return AzimuthElevation::FromRadians(azimuth_rad, elevation_rad);
 }

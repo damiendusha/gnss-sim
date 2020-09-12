@@ -79,12 +79,13 @@ void codegen(int *ca, int prn)
 }
 
 
-double ionosphericDelay(const ionoutc_t &ionoutc, gpstime_t g, double *llh, double *azel)
+double ionosphericDelay(const ionoutc_t &ionoutc, gpstime_t g, double *llh, 
+                        const AzimuthElevation &azel)
 {
-	if (ionoutc.enable==false)
+	if (ionoutc.enable == false)
 		return 0; // No ionospheric delay
 
-	const double E = azel[1]/PI;
+	const double E = azel.elevation_rad() / PI;
 	const double phi_u = llh[0]/PI;
 	const double lam_u = llh[1]/PI;
 
@@ -103,7 +104,7 @@ double ionosphericDelay(const ionoutc_t &ionoutc, gpstime_t g, double *llh, doub
 		
 		// Geodetic latitude of the earth projection of the ionospheric intersection point
 		// (semi-circles)
-		double phi_i = phi_u + psi * std::cos(azel[0]);
+		double phi_i = phi_u + psi * std::cos(azel.azimuth_rad());
 		if(phi_i>0.416)
 			phi_i = 0.416;
 		else if(phi_i<-0.416)
@@ -111,7 +112,7 @@ double ionosphericDelay(const ionoutc_t &ionoutc, gpstime_t g, double *llh, doub
 
 		// Geodetic longitude of the earth projection of the ionospheric intersection point
 		// (semi-circles)
-		const double lam_i = lam_u + psi* std::sin(azel[0]) / std::cos(phi_i*PI);
+		const double lam_i = lam_u + psi* std::sin(azel.azimuth_rad()) / std::cos(phi_i*PI);
 
 		// Geomagnetic latitude of the earth projection of the ionospheric intersection
 		// point (mean ionospheric height assumed 350 km) (semi-circles)
@@ -207,7 +208,7 @@ void computeRange(range_t *rho, const ephem_t &eph, const ionoutc_t &ionoutc,
 	xyz2llh(xyz, llh);
 	ltcmat(llh, tmat);
 	ecef2neu(los, tmat, neu);
-	neu2azel(rho->azel, neu);
+	rho->azel = neu2azel(neu);
 
 	// Add ionospheric delay
 	rho->iono_delay = ionosphericDelay(ionoutc, g, llh, rho->azel);
@@ -329,7 +330,7 @@ int generateNavMsg(gpstime_t g, channel_t *chan, int init)
 }
 
 bool checkSatVisibility(const ephem_t &eph, gpstime_t g, double *xyz, 
-                        double elevation_mask_deg, double *azel)
+                        double elevation_mask_deg, AzimuthElevation &out_azel)
 {
 	double llh[3],neu[3];
 	double pos[3],vel[3],clk[3],los[3];
@@ -344,16 +345,16 @@ bool checkSatVisibility(const ephem_t &eph, gpstime_t g, double *xyz,
 	satpos(eph, g, pos, vel, clk);
 	subVect(los, pos, xyz);
 	ecef2neu(los, tmat, neu);
-	neu2azel(azel, neu);
+	out_azel = neu2azel(neu);
 
-	return azel[1] * R2D > elevation_mask_deg;
+	return out_azel.elevation_deg() > elevation_mask_deg;
 }
 
 int allocateChannel(channel_t *chan, ephem_t *eph, ionoutc_t ionoutc, 
                     gpstime_t grx, double *xyz, double elevation_mask_deg)
 {
 	int num_visible_sats = 0;
-	double azel[2];
+	AzimuthElevation azel;
 
 	double ref[3]={0.0};
 
@@ -373,8 +374,7 @@ int allocateChannel(channel_t *chan, ephem_t *eph, ionoutc_t ionoutc,
 					{
 						// Initialize channel
 						chan[i].prn = sv+1;
-						chan[i].azel[0] = azel[0];
-						chan[i].azel[1] = azel[1];
+						chan[i].azel = azel;
 
 						// C/A code generation
 						codegen(chan[i].ca, chan[i].prn);
@@ -767,7 +767,8 @@ int main(int argc, char *argv[])
 	{
 		if (chan[i].prn>0)
 			fprintf(stderr, "%02d %6.1f %5.1f %11.1f %5.1f\n", chan[i].prn, 
-				chan[i].azel[0]*R2D, chan[i].azel[1]*R2D, chan[i].rho0.d, chan[i].rho0.iono_delay);
+				chan[i].azel.azimuth_deg(), chan[i].azel.elevation_deg(), chan[i].
+				rho0.d, chan[i].rho0.iono_delay);
 	}
 
 	////////////////////////////////////////////////////////////
@@ -819,8 +820,7 @@ int main(int argc, char *argv[])
 				// Current pseudorange
 				computeRange(&rho, eph[ieph][sv], ionoutc, grx, xyz);
 
-				chan[i].azel[0] = rho.azel[0];
-				chan[i].azel[1] = rho.azel[1];
+				chan[i].azel = rho.azel;
 
 				// Update code phase and data bit counters
 				computeCodePhase(&chan[i], rho, 0.1);
@@ -946,7 +946,8 @@ int main(int argc, char *argv[])
 				{
 					if (chan[i].prn>0)
 						fprintf(stderr, "%02d %6.1f %5.1f %11.1f %5.1f\n", chan[i].prn,
-							chan[i].azel[0]*R2D, chan[i].azel[1]*R2D, chan[i].rho0.d, chan[i].rho0.iono_delay);
+							chan[i].azel.azimuth_deg(), chan[i].azel.elevation_deg(),
+                            chan[i].rho0.d, chan[i].rho0.iono_delay);
 				}
 			}
 		}

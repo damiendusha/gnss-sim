@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include "geodesy.h"
+
 #include <array>
 
 class AntennaGain
@@ -16,7 +18,7 @@ class AntennaGain
   public:
       AntennaGain();
 
-      double ComputeAntennaGain(double azel_rad[2]) const;
+      double ComputeAntennaGain(const AzimuthElevation &azel) const;
 
   private:
       // Receiver antenna attenuation for boresight angle = 0:5:180 [deg] as

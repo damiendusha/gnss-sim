@@ -8,10 +8,10 @@
 
 #include <memory>
 
-double ConstellationGain::ComputeGain(int prn, double range_m, double azel_rad[2]) const
+double ConstellationGain::ComputeGain(int prn, double range_m, const AzimuthElevation &azel) const
 {
     const int index = IndexFromPrn(prn);
-    return prn_to_gain_[index]->ComputeGain(range_m, azel_rad);
+    return prn_to_gain_[index]->ComputeGain(range_m, azel);
 }
 
 void ConstellationGain::SetSatelliteToConstantGain(int prn, double gain)
