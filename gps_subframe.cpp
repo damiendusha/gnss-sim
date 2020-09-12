@@ -11,6 +11,23 @@
 
 #include <cmath>
 
+namespace {
+
+static constexpr double POW2_M5  = 0.03125;
+static constexpr double POW2_M19 = 1.907348632812500e-6;
+static constexpr double POW2_M29 = 1.862645149230957e-9;
+static constexpr double POW2_M31 = 4.656612873077393e-10;
+static constexpr double POW2_M33 = 1.164153218269348e-10;
+static constexpr double POW2_M43 = 1.136868377216160e-13;
+static constexpr double POW2_M55 = 2.775557561562891e-17;
+
+static constexpr double POW2_M50 = 8.881784197001252e-016;
+static constexpr double POW2_M30 = 9.313225746154785e-010;
+static constexpr double POW2_M27 = 7.450580596923828e-009;
+static constexpr double POW2_M24 = 5.960464477539063e-008;
+
+}   // namespace
+
 /*! \brief Compute Subframe from Ephemeris
  *  \param[in] eph Ephemeris of given SV
  *  \param[out] sbf Array of five sub-frames, 10 long words each
