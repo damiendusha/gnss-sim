@@ -51,6 +51,41 @@ class GpsChannel
         current_data_bit_ = ComputeDataBit();
     }
 
+    void UpdateCarrierPhase(const double delta_t_s) {
+        carr_phase += f_carr * delta_t_s;
+        if (carr_phase >= 1.0)
+            carr_phase -= 1.0;
+        else if (carr_phase<0.0)
+            carr_phase += 1.0;
+    }
+
+    void UpdateCodePhase(const double delta_t_s)
+    {
+        code_phase += f_code * delta_t_s;
+
+        if (code_phase >= CA_SEQ_LEN) {
+            code_phase -= CA_SEQ_LEN;
+
+            initial_code++;
+            if (initial_code>=20) // 20 C/A codes = 1 navigation data bit
+            {
+                initial_code = 0;
+                
+                initial_bit++;
+                if (initial_bit >= 30) // 30 navigation data bits = 1 word
+                {
+                    initial_bit = 0;
+                    initial_word++;
+                }
+
+                // Set new navigation data bit
+                UpdateDataBit();
+            }
+        }
+        
+        UpdateCodeChip();
+    }
+
   private:
     /// \brief C/A code sequence. All values are either -1 or 1.
     std::array<int, CA_SEQ_LEN> code_sequence_;

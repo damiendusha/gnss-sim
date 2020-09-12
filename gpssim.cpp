@@ -645,10 +645,10 @@ int main(int argc, char *argv[])
 			{
 				// Refresh code phase and data bit counters
 				range_t rho;
-				const int sv = chan[i].prn-1;
+				const int sv_index = chan[i].prn-1;
 
 				// Current pseudorange
-				computeRange(&rho, eph[ieph][sv], ionoutc, 
+				computeRange(&rho, eph[ieph][sv_index], ionoutc, 
                              current_simulation_time, xyz);
 
 				chan[i].azel = rho.azel;
@@ -684,41 +684,11 @@ int main(int argc, char *argv[])
 					i_acc += ip;
 					q_acc += qp;
 
-					// Update code phase
-					chan[i].code_phase += chan[i].f_code * sample_period_s;
-
-					if (chan[i].code_phase >= CA_SEQ_LEN)
-					{
-						chan[i].code_phase -= CA_SEQ_LEN;
-
-						chan[i].initial_code++;
-					
-						if (chan[i].initial_code>=20) // 20 C/A codes = 1 navigation data bit
-						{
-							chan[i].initial_code = 0;
-							chan[i].initial_bit++;
-						
-							if (chan[i].initial_bit>=30) // 30 navigation data bits = 1 word
-							{
-								chan[i].initial_bit = 0;
-								chan[i].initial_word++;
-                            }
-
-							// Set new navigation data bit
-							chan[i].UpdateDataBit();
-						}
-					}
-
-					// Set current code chip
-					chan[i].UpdateCodeChip();
+					// Update code phase, including the code chip and data bit.
+					chan[i].UpdateCodePhase(sample_period_s);
 
 					// Update carrier phase
-					chan[i].carr_phase += chan[i].f_carr * sample_period_s;
-
-					if (chan[i].carr_phase >= 1.0)
-						chan[i].carr_phase -= 1.0;
-					else if (chan[i].carr_phase<0.0)
-						chan[i].carr_phase += 1.0;
+					chan[i].UpdateCarrierPhase(sample_period_s);
 				}
 			}
 
@@ -730,16 +700,16 @@ int main(int argc, char *argv[])
             sample_writer.WriteSample(
                     noise_generator.ScaleAndAddNoise(i_acc * kSampleScale),
                     noise_generator.ScaleAndAddNoise(q_acc * kSampleScale));
-		}
+        }
 
-		//
-		// Update navigation message and channel allocation every 30 seconds
-		//
+        //
+        // Update navigation message and channel allocation on 30s boundaries.
+        //
 
         const int icurrent_simulation_time = 
             (int)(current_simulation_time.sec*10.0+0.5);
 
-        if (icurrent_simulation_time % 300 == 0) // Every 30 seconds
+        if (icurrent_simulation_time % 300 == 0)
 		{
 			// Update navigation message
 			for (int i = 0; i < MAX_CHAN; i++)
@@ -773,7 +743,8 @@ int main(int argc, char *argv[])
 			}
 
 			// Update channel allocation
-			allocateChannel(chan, eph[ieph], allocatedSat, ionoutc, current_simulation_time, xyz, elevation_mask_deg);
+			allocateChannel(chan, eph[ieph], allocatedSat, ionoutc, 
+                            current_simulation_time, xyz, elevation_mask_deg);
 
 			// Show details about simulated channels
 			if (verbose)
