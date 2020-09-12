@@ -47,18 +47,59 @@ class AzimuthElevation {
     double el_rad_ = 0;
 };
 
+class GeodeticPosition {
+  public:
+    GeodeticPosition() = default;
+
+    static GeodeticPosition FromDegrees(double lat_deg, double lon_deg, double height_m) {
+        return GeodeticPosition(lat_deg * (M_PI / 180.0),
+                                lon_deg * (M_PI / 180.0),
+                                height_m);
+    }
+
+    static GeodeticPosition FromRadians(double lat_rad, double lon_rad, double height_m) {
+        return GeodeticPosition(lat_rad, lon_rad, height_m);
+    }
+
+    void set_latitude_deg(double lat_deg) { set_latitude_rad(lat_deg * (M_PI / 180.0)); }
+    void set_longitude_deg(double lon_deg) { set_longitude_rad(lon_deg * (M_PI / 180.0)); }
+    void set_height_m(double height_m) { height_m_ = height_m; }
+
+    double latitude_deg() const { return lat_rad_ * (180.0 / M_PI); }
+    double longitude_deg() const { return lat_rad_ * (180.0 / M_PI); }
+    double height_m() const { return height_m_; }
+    
+    void set_latitude_rad(double lat_rad) { lat_rad_ = lat_rad; }
+    void set_longitude_rad(double lon_rad) { lon_rad_ = lon_rad; }
+
+    double latitude_rad() const { return lat_rad_; }
+    double longitude_rad() const { return lon_rad_; }    
+
+  private:
+    double lat_rad_ = 0;
+    double lon_rad_ = 0;
+    double height_m_ = 0;
+    
+    GeodeticPosition(double lat_rad, double lon_rad, double height_m)
+        : lat_rad_(lat_rad)
+        , lon_rad_(lon_rad)
+        , height_m_(height_m)
+    {
+    }
+};
+
 
 /*! \brief Convert Earth-centered Earth-fixed (ECEF) into Lat/Lon/Height
  *  \param[in] xyz Input Array of X, Y and Z ECEF coordinates
  *  \param[out] llh Output Array of Latitude, Longitude and Height
  */
-void xyz2llh(const double *xyz, double *llh);
+GeodeticPosition xyz2llh(const double *xyz);
 
 /*! \brief Convert Lat/Long/Height into Earth-centered Earth-fixed (ECEF)
  *  \param[in] llh Input Array of Latitude, Longitude and Height
  *  \param[out] xyz Output Array of X, Y and Z ECEF coordinates
  */
-void llh2xyz(const double *llh, double *xyz);
+void llh2xyz(const GeodeticPosition &llh, double *xyz);
 
 /*! \brief Convert North-Eeast-Up to Azimuth + Elevation
  *  \param[in] neu Input position in North-East-Up format
@@ -77,4 +118,4 @@ void ecef2neu(const double *xyz, double t[3][3], double *neu);
  *  \param[in] llh Input position in Latitude-Longitude-Height format
  *  \param[out] t Three-by-Three output matrix
  */
-void ltcmat(const double *llh, double t[3][3]);
+void ltcmat(const GeodeticPosition &llh, double t[3][3]);

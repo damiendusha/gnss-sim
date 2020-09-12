@@ -13,31 +13,24 @@
 
 #include <cmath>
 
-void xyz2llh(const double *xyz, double *llh)
+GeodeticPosition xyz2llh(const double *xyz)
 {
-	double a,eps,e,e2;
-	double x,y,z;
 	double rho2,dz,zdz,nh,slat,n,dz_new;
 
-	a = WGS84_RADIUS;
-	e = WGS84_ECCENTRICITY;
+	constexpr double a = WGS84_RADIUS;
+	constexpr double e = WGS84_ECCENTRICITY;
+	constexpr double e2 = e*e;
 
-	eps = 1.0e-3;
-	e2 = e*e;
-
-	if (normVect(xyz)<eps)
+    constexpr double eps = 1.0e-3;
+	if (normVect(xyz) < eps)
 	{
-		// Invalid ECEF vector
-		llh[0] = 0.0;
-		llh[1] = 0.0;
-		llh[2] = -a;
-
-		return;
+        // Invalid ECEF vector
+        return GeodeticPosition::FromRadians(0.0, 0.0, -a);
 	}
 
-	x = xyz[0];
-	y = xyz[1];
-	z = xyz[2];
+	const double x = xyz[0];
+	const double y = xyz[1];
+	const double z = xyz[2];
 
 	rho2 = x*x + y*y;
 	dz = e2*z;
@@ -45,9 +38,9 @@ void xyz2llh(const double *xyz, double *llh)
 	while (1)
 	{
 		zdz = z + dz;
-		nh = sqrt(rho2 + zdz*zdz);
+		nh = std::sqrt(rho2 + zdz*zdz);
 		slat = zdz / nh;
-		n = a / sqrt(1.0-e2*slat*slat);
+		n = a / std::sqrt(1.0-e2*slat*slat);
 		dz_new = n*e2*slat;
 
 		if (fabs(dz-dz_new) < eps)
@@ -56,56 +49,42 @@ void xyz2llh(const double *xyz, double *llh)
 		dz = dz_new;
 	}
 
-	llh[0] = atan2(zdz, sqrt(rho2));
-	llh[1] = atan2(y, x);
-	llh[2] = nh - n;
+    const double lat_rad = std::atan2(zdz, std::sqrt(rho2));
+    const double lon_rad = std::atan2(y, x);
+    const double height_m = nh - n;
 
-	return;
+    return GeodeticPosition::FromRadians(lat_rad, lon_rad, height_m);
 }
 
-void llh2xyz(const double *llh, double *xyz)
+void llh2xyz(const GeodeticPosition &llh, double *xyz)
 {
-	double n;
-	double a;
-	double e;
-	double e2;
-	double clat;
-	double slat;
-	double clon;
-	double slon;
-	double d,nph;
-	double tmp;
+	constexpr double a = WGS84_RADIUS;
+	constexpr double e = WGS84_ECCENTRICITY;
+	constexpr double e2 = e*e;
 
-	a = WGS84_RADIUS;
-	e = WGS84_ECCENTRICITY;
-	e2 = e*e;
+	const double clat = std::cos(llh.latitude_rad());
+	const double slat = std::sin(llh.latitude_rad());
+	const double clon = std::cos(llh.longitude_rad());
+	const double slon = std::sin(llh.longitude_rad());
+	const double d = e*slat;
 
-	clat = cos(llh[0]);
-	slat = sin(llh[0]);
-	clon = cos(llh[1]);
-	slon = sin(llh[1]);
-	d = e*slat;
+	const double n = a / std::sqrt(1.0-d*d);
+	const double nph = n + llh.height_m();
 
-	n = a/sqrt(1.0-d*d);
-	nph = n + llh[2];
-
-	tmp = nph*clat;
+	const double tmp = nph*clat;
 	xyz[0] = tmp*clon;
 	xyz[1] = tmp*slon;
-	xyz[2] = ((1.0-e2)*n + llh[2])*slat;
+	xyz[2] = ((1.0-e2)*n + llh.height_m())*slat;
 
 	return;
 }
 
-void ltcmat(const double *llh, double t[3][3])
+void ltcmat(const GeodeticPosition &llh, double t[3][3])
 {
-	double slat, clat;
-	double slon, clon;
-
-	slat = sin(llh[0]);
-	clat = cos(llh[0]);
-	slon = sin(llh[1]);
-	clon = cos(llh[1]);
+	const double slat = std::sin(llh.latitude_rad());
+	const double clat = std::cos(llh.latitude_rad());
+	const double slon = std::sin(llh.longitude_rad());
+	const double clon = std::cos(llh.longitude_rad());
 
 	t[0][0] = -slat*clon;
 	t[0][1] = -slat*slon;
@@ -116,8 +95,6 @@ void ltcmat(const double *llh, double t[3][3])
 	t[2][0] = clat*clon;
 	t[2][1] = clat*slon;
 	t[2][2] = slat;
-
-	return;
 }
 
 void ecef2neu(const double *xyz, double t[3][3], double *neu)

@@ -24,7 +24,7 @@ struct ionoutc_t
 	int dtlsf,dn,wnlsf;
 };
 
-double ionosphericDelay(const ionoutc_t &ionoutc, gpstime_t g, double *llh, 
+double ionosphericDelay(const ionoutc_t &ionoutc, gpstime_t g, const GeodeticPosition &llh, 
                         const AzimuthElevation &azel);
 
 

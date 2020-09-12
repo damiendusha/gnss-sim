@@ -16,15 +16,15 @@ static constexpr double SPEED_OF_LIGHT = 2.99792458e8;
 static constexpr double PI = 3.1415926535898; // GPS-ICD-200 !!!
 }
 
-double ionosphericDelay(const ionoutc_t &ionoutc, gpstime_t g, double *llh, 
+double ionosphericDelay(const ionoutc_t &ionoutc, gpstime_t g, const GeodeticPosition &llh, 
                         const AzimuthElevation &azel)
 {
 	if (ionoutc.enable == false)
 		return 0; // No ionospheric delay
 
 	const double E = azel.elevation_rad() / PI;
-	const double phi_u = llh[0]/PI;
-	const double lam_u = llh[1]/PI;
+	const double phi_u = llh.latitude_rad() / PI;
+	const double lam_u = llh.longitude_rad() / PI;
 
 	// Obliquity factor
 	const double F = 1.0 + 16.0*pow((0.53 - E),3.0);

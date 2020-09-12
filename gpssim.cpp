@@ -94,7 +94,7 @@ void computeRange(range_t *rho, const ephem_t &eph, const ionoutc_t &ionoutc,
 	double los[3];
 	double xrot,yrot;
 
-	double llh[3],neu[3];
+	double neu[3];
 	double tmat[3][3];
 	
 	// SV position at time of the pseudorange observation.
@@ -133,7 +133,7 @@ void computeRange(range_t *rho, const ephem_t &eph, const ionoutc_t &ionoutc,
 	rho->g = g;
 
 	// Azimuth and elevation angles.
-	xyz2llh(xyz, llh);
+	const GeodeticPosition llh = xyz2llh(xyz);
 	ltcmat(llh, tmat);
 	ecef2neu(los, tmat, neu);
 	rho->azel = neu2azel(neu);
@@ -260,14 +260,14 @@ int generateNavMsg(gpstime_t g, channel_t *chan, int init)
 bool checkSatVisibility(const ephem_t &eph, gpstime_t g, double *xyz, 
                         double elevation_mask_deg, AzimuthElevation &out_azel)
 {
-	double llh[3],neu[3];
+	double neu[3];
 	double pos[3],vel[3],clk[3],los[3];
 	double tmat[3][3];
 
 	if (!eph.valid)
         return false;
 
-	xyz2llh(xyz,llh);
+	const GeodeticPosition llh = xyz2llh(xyz);
 	ltcmat(llh, tmat);
 
 	satpos(eph, g, pos, vel, clk);
@@ -378,7 +378,8 @@ int main(int argc, char *argv[])
 	ephem_t eph[EPHEM_ARRAY_SIZE][MAX_SAT];
 	gpstime_t g0;
 	
-	double llh[3];
+    // Default static location; Tokyo
+	GeodeticPosition llh = GeodeticPosition::FromDegrees(35.681298, 139.766247, 10.0);
 
 	channel_t chan[MAX_CHAN];
 	double elevation_mask_deg = 0.0;
@@ -434,12 +435,14 @@ int main(int argc, char *argv[])
 			sscanf(optarg,"%lf,%lf,%lf", &xyz[0], &xyz[1], &xyz[2]);
 			break;
 		case 'l':
-			// Static geodetic coordinates input mode
-			sscanf(optarg,"%lf,%lf,%lf",&llh[0],&llh[1],&llh[2]);
-			llh[0] = llh[0] / R2D; // convert to RAD
-			llh[1] = llh[1] / R2D; // convert to RAD
+        {
+			// Static geodetic coordinates input mode.
+            double raw_lat, raw_lon, raw_height;
+			sscanf(optarg,"%lf,%lf,%lf",&raw_lat, &raw_lon, &raw_height);
+            llh = GeodeticPosition::FromDegrees(raw_lat, raw_lon, raw_height);
 			llh2xyz(llh,xyz); // Convert llh to xyz
 			break;
+        }
 		case 'o':
 			output_sample_filename.assign(optarg);
 			break;
@@ -505,11 +508,6 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "ERROR: GPS ephemeris file is not specified.\n");
 		exit(1);
 	}
-
-	// Default static location; Tokyo
-	llh[0] = 35.681298 / R2D;
-	llh[1] = 139.766247 / R2D;
-	llh[2] = 10.0;
 
 	if (duration < 0.0 || duration > STATIC_MAX_DURATION)
 	{
