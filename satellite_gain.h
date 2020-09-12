@@ -52,7 +52,7 @@ class SatelliteGainConstant : public SatelliteGain
     explicit SatelliteGainConstant(const double gain) : gain_(gain) {}
       
   protected:
-    double InternalComputeGain(double range_m, double azel_rad[2]) const override 
+    double InternalComputeGain(double, double*) const override 
     {
         return gain_;
     }

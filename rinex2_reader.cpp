@@ -1,11 +1,3 @@
-
-#include "rinex2_reader.h"
-#include "gpssim.h"
-#include "gps_time.h"
-
-#include <cstdio>
-#include <cstring>
-#include <cstdlib>
 // This file is part of:
 // gnss-sim: A GNSS Signal Simulator
 //
@@ -14,6 +6,14 @@
 //
 // Derived from https://github.com/osqzss/gps-sdr-sim (MIT Licence):
 // Copyright (c) 2015-2020 Takuji Ebinuma
+
+#include "rinex2_reader.h"
+#include "gpssim.h"
+#include "gps_time.h"
+
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
 
 #include <cmath>
 
@@ -68,9 +68,9 @@ int readRinexNavAll(ephem_t eph[][MAX_SAT], ionoutc_t *ionoutc,
 		return(-1);
 
 	// Clear valid flag
-	for (ieph=0; ieph<EPHEM_ARRAY_SIZE; ieph++)
-		for (sv=0; sv<MAX_SAT; sv++)
-			eph[ieph][sv].vflg = 0;
+	for (ieph = 0; ieph < EPHEM_ARRAY_SIZE; ieph++)
+		for (sv=0; sv < MAX_SAT; sv++)
+			eph[ieph][sv].valid = false;
 
 	// Read header lines
 	while (1)
@@ -383,7 +383,7 @@ int readRinexNavAll(ephem_t eph[][MAX_SAT], ionoutc_t *ionoutc,
 			break;
 
 		// Set valid flag
-		eph[ieph][sv].vflg = 1;
+		eph[ieph][sv].valid = 1;
 
 		// Update the working variables
 		eph[ieph][sv].A = eph[ieph][sv].sqrta * eph[ieph][sv].sqrta;

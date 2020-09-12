@@ -69,7 +69,7 @@ bool SampleWriter::FlushSamples()
     if (samples_stored_ == 0)
         return true;
 
-    const int num_elements = 2 * samples_stored_;
+    const std::size_t num_elements = 2 * samples_stored_;
     samples_stored_ = 0;
     return num_elements == fwrite(sample_buffer_.data(), sizeof(int16_t), num_elements, fp_);
 }

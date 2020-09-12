@@ -33,7 +33,7 @@ class SampleWriter
   private: 
     FILE* fp_ = nullptr;
 
-    int samples_stored_ = 0;
+    std::size_t samples_stored_ = 0;
     std::vector<int16_t> sample_buffer_;
 
     // Flushed all samples from the buffer to the file.

@@ -18,7 +18,6 @@ add_executable(gnss_sim
     gps_subframe.cpp
     gps_time.cpp
     geodesy.cpp
-    nmea_reader.cpp
     rinex2_reader.cpp
     sample_writer.cpp
     satellite_gain.cpp
@@ -26,6 +25,6 @@ add_executable(gnss_sim
 
 target_link_libraries(gnss_sim m)
 
-target_compile_options(gnss_sim PRIVATE -O3 -march=native)
+target_compile_options(gnss_sim PRIVATE -O3 -march=native -Wall -Wextra)
 
 install(TARGETS gnss_sim DESTINATION bin)

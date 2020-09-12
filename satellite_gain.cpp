@@ -6,6 +6,8 @@
 
 #include "satellite_gain.h"
 
+#include <memory>
+
 double ConstellationGain::ComputeGain(int prn, double range_m, double azel_rad[2]) const
 {
     const int index = IndexFromPrn(prn);
@@ -20,7 +22,7 @@ void ConstellationGain::SetSatelliteToConstantGain(int prn, double gain)
 
 ConstellationGain::ConstellationGain()
 {
-    for (int i = 0; i < prn_to_gain_.size(); ++i)
+    for (std::size_t i = 0; i < prn_to_gain_.size(); ++i)
     {
         prn_to_gain_[i] = std::make_unique<SatelliteGainRangeRxAntenna>();
     }

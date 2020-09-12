@@ -14,10 +14,10 @@
 /*! \brief Structure representing ephemeris of a single satellite */
 struct ephem_t
 {
-	bool vflg;	/*!< Valid Flag */
+	bool valid;        /*!< Valid Flag */
 	datetime_t t;
-	gpstime_t toc;	/*!< Time of Clock */
-	gpstime_t toe;	/*!< Time of Ephemeris */
+	gpstime_t toc;     /*!< Time of Clock */
+	gpstime_t toe;     /*!< Time of Ephemeris */
 	int iodc;	/*!< Issue of Data, Clock */
 	int iode;	/*!< Isuse of Data, Ephemeris */
 	double deltan;	/*!< Delta-N (radians/sec) */

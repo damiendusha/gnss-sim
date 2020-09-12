@@ -328,13 +328,15 @@ int generateNavMsg(gpstime_t g, channel_t *chan, int init)
 	return(1);
 }
 
-bool checkSatVisibility(ephem_t eph, gpstime_t g, double *xyz, double elevation_mask_deg, double *azel)
+bool checkSatVisibility(const ephem_t &eph, gpstime_t g, double *xyz, 
+                        double elevation_mask_deg, double *azel)
 {
 	double llh[3],neu[3];
 	double pos[3],vel[3],clk[3],los[3];
 	double tmat[3][3];
 
-	if (eph.vflg != 1) return false;
+	if (!eph.valid)
+        return false;
 
 	xyz2llh(xyz,llh);
 	ltcmat(llh, tmat);
@@ -429,12 +431,12 @@ void usage(void)
 		"  -l <location>    Lat,Lon,Hgt (static mode) e.g. 35.681298,139.766247,10.0\n"
 		"  -t <date,time>   Scenario start time YYYY/MM/DD,hh:mm:ss\n"
 		"  -T <date,time>   Overwrite TOC and TOE to scenario start time\n"
-		"  -d <duration>    Duration [sec] (dynamic mode max: %.0f, static mode max: %d)\n"
+		"  -d <duration>    Duration [sec] (static mode max: %d)\n"
 		"  -o <output>      I/Q sampling data file (default: gpssim.bin)\n"
 		"  -s <frequency>   Sampling frequency [Hz] (default: 2600000)\n"
 		"  -i               Disable ionospheric delay for spacecraft scenario\n"
 		"  -v               Show details about simulated channels\n",
-		((double)USER_MOTION_SIZE) / 10.0, STATIC_MAX_DURATION);
+		STATIC_MAX_DURATION);
 
 	return;
 }
@@ -454,7 +456,7 @@ int main(int argc, char *argv[])
 
 	gpstime_t grx;
 
-	double xyz[USER_MOTION_SIZE][3];
+	double xyz[3];
 
     std::string rinex2_nav_file;
     std::string output_sample_filename = {"gpssim.bin"};
@@ -480,7 +482,7 @@ int main(int argc, char *argv[])
 	// Default options
 	double samp_freq = 2.6e6;
 	g0.week = -1; // Invalid start time
-	double duration = ((double) USER_MOTION_SIZE)/10.0; // Default duration
+	double duration = 300;     // 5 minutes.
 	ionoutc.enable = true;
 
 	if (argc<3)
@@ -498,14 +500,14 @@ int main(int argc, char *argv[])
 			break;
 		case 'c':
 			// Static ECEF coordinates input mode
-			sscanf(optarg,"%lf,%lf,%lf",&xyz[0][0],&xyz[0][1],&xyz[0][2]);
+			sscanf(optarg,"%lf,%lf,%lf", &xyz[0], &xyz[1], &xyz[2]);
 			break;
 		case 'l':
 			// Static geodetic coordinates input mode
 			sscanf(optarg,"%lf,%lf,%lf",&llh[0],&llh[1],&llh[2]);
 			llh[0] = llh[0] / R2D; // convert to RAD
 			llh[1] = llh[1] / R2D; // convert to RAD
-			llh2xyz(llh,xyz[0]); // Convert llh to xyz
+			llh2xyz(llh,xyz); // Convert llh to xyz
 			break;
 		case 'o':
 			output_sample_filename.assign(optarg);
@@ -536,9 +538,8 @@ int main(int argc, char *argv[])
 				t0.sec = (double)gmt->tm_sec;
 
 				date2gps(&t0, &g0);
-
-				break;
 			}
+			break;
 		case 't':
 			sscanf(optarg, "%d/%d/%d,%d:%d:%lf", &t0.y, &t0.m, &t0.d, &t0.hh, &t0.mm, &t0.sec);
 			if (t0.y<=1980 || t0.m<1 || t0.m>12 || t0.d<1 || t0.d>31 ||
@@ -628,7 +629,7 @@ int main(int argc, char *argv[])
 
 	for (int sv = 0; sv < MAX_SAT; sv++) 
 	{
-		if (eph[0][sv].vflg==1)
+		if (eph[0][sv].valid)
 		{
 			gmin = eph[0][sv].toc;
 			tmin = eph[0][sv].t;
@@ -646,7 +647,7 @@ int main(int argc, char *argv[])
 	tmax.y = 0;
 	for (int sv = 0; sv < MAX_SAT; sv++)
 	{
-		if (eph[neph-1][sv].vflg == 1)
+		if (eph[neph-1][sv].valid)
 		{
 			gmax = eph[neph-1][sv].toc;
 			tmax = eph[neph-1][sv].t;
@@ -676,7 +677,7 @@ int main(int argc, char *argv[])
 			{
 				for (int i = 0; i < neph; i++)
 				{
-					if (eph[i][sv].vflg == 1)
+					if (eph[i][sv].valid)
 					{
 						gtmp = incGpsTime(eph[i][sv].toc, dsec);
 						gps2date(&gtmp,&ttmp);
@@ -721,7 +722,7 @@ int main(int argc, char *argv[])
 	{
 		for (int sv = 0; sv < MAX_SAT; sv++)
 		{
-			if (eph[i][sv].vflg == 1)
+			if (eph[i][sv].valid)
 			{
 				const double dt = subGpsTime(g0, eph[i][sv].toc);
 				if (dt>=-SECONDS_IN_HOUR && dt<SECONDS_IN_HOUR)
@@ -760,7 +761,7 @@ int main(int argc, char *argv[])
 	grx = incGpsTime(g0, 0.0);
 
 	// Allocate visible satellites
-	allocateChannel(chan, eph[ieph], ionoutc, grx, xyz[0], elevation_mask_deg);
+	allocateChannel(chan, eph[ieph], ionoutc, grx, xyz, elevation_mask_deg);
 
 	for(int i = 0; i < MAX_CHAN; i++)
 	{
@@ -816,7 +817,7 @@ int main(int argc, char *argv[])
 				const int sv = chan[i].prn-1;
 
 				// Current pseudorange
-				computeRange(&rho, eph[ieph][sv], ionoutc, grx, xyz[0]);
+				computeRange(&rho, eph[ieph][sv], ionoutc, grx, xyz);
 
 				chan[i].azel[0] = rho.azel[0];
 				chan[i].azel[1] = rho.azel[1];
@@ -916,7 +917,7 @@ int main(int argc, char *argv[])
 			// Quick and dirty fix. Need more elegant way.
 			for (int sv=0; sv < MAX_SAT; sv++)
 			{
-				if (eph[ieph+1][sv].vflg==1)
+				if (eph[ieph+1][sv].valid)
 				{
 					const double dt = subGpsTime(eph[ieph+1][sv].toc, grx);
 					if (dt < SECONDS_IN_HOUR)
@@ -935,7 +936,7 @@ int main(int argc, char *argv[])
 			}
 
 			// Update channel allocation
-			allocateChannel(chan, eph[ieph], ionoutc, grx, xyz[0], elevation_mask_deg);
+			allocateChannel(chan, eph[ieph], ionoutc, grx, xyz, elevation_mask_deg);
 
 			// Show details about simulated channels
 			if (verbose)

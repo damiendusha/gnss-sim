@@ -19,11 +19,6 @@
 /*! \brief Maximum number of channels we simulate */
 #define MAX_CHAN (16)
 
-/*! \brief Maximum number of user motion points */
-#ifndef USER_MOTION_SIZE
-#define USER_MOTION_SIZE (3000) // max duration at 10Hz
-#endif
-
 /*! \brief Maximum duration for static mode*/
 #define STATIC_MAX_DURATION (86400) // second
 
@@ -80,11 +75,11 @@
 #define EPHEM_ARRAY_SIZE (13) // for daily GPS broadcast ephemers file (brdc)
 
 /*! \brief Structure representing GPS time */
-struct gpstime_t
+typedef struct
 {
 	int week;	/*!< GPS week number (since January 1980) */
 	double sec; 	/*!< second inside the GPS \a week */
-};
+} gpstime_t;
 
 /*! \brief Structure repreenting UTC time */
 struct datetime_t
