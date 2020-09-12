@@ -249,7 +249,7 @@ int allocateChannel(GpsChannel *chan, ephem_t *eph, int* allocatedSat,
                 int i;
 				for (i = 0; i < MAX_CHAN; i++)
 				{
-					if (chan[i].prn == 0)
+					if (!chan[i].IsEnabled())
 					{
 						// Initialize channel
 						chan[i] = GpsChannel(sv+1);
@@ -315,6 +315,13 @@ void usage(void)
 		STATIC_MAX_DURATION);
 
 	return;
+}
+
+/// \brief Checks whether the sample frequency has an integer number of ns ticks.
+bool SampleFrequencyIsValid(int sample_frequency) {
+    constexpr int ticks_per_ns = 1000000000;
+    int period_ns = ticks_per_ns / sample_frequency;
+    return period_ns * sample_frequency == ticks_per_ns;
 }
 
 int main(int argc, char *argv[])
@@ -444,9 +451,14 @@ int main(int argc, char *argv[])
         fprintf(stderr, "ERROR: Failed to open output sample file \"%s\".\n", output_sample_filename.c_str());
     }
 
-	// Round the sample frequency to the nearest 10Hz.
-	samp_freq = std::round(samp_freq / 10.0) * 10.0;
-	const double delt = 1.0 / samp_freq;  
+    if (!SampleFrequencyIsValid(std::lround(samp_freq))) {
+        fprintf(stderr, "ERROR: Sample frequency %f not an integer divisor of 1GHz\n",
+                samp_freq);
+        exit(1);
+    }
+
+    // Round the sample frequency to the nearest 10Hz.
+    const double delt = 1.0 / samp_freq;  
 
 	////////////////////////////////////////////////////////////
 	// Read ephemeris
