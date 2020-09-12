@@ -14,7 +14,6 @@
 #include "gps_math.h"
 #include "gps_subframe.h"
 #include "geodesy.h"
-#include "nmea_reader.h"
 #include "noise_generator.h"
 #include "sin_table.h"
 #include "sample_writer.h"
@@ -255,39 +254,6 @@ void computeCodePhase(channel_t *chan, range_t rho1, double dt)
 	return;
 }
 
-/*! \brief Read the list of user motions from the input file
- *  \param[out] xyz Output array of ECEF vectors for user motion
- *  \param[[in] filename File name of the text input file
- *  \returns Number of user data motion records read, -1 on error
- */
-int readUserMotion(double xyz[USER_MOTION_SIZE][3], const char *filename)
-{
-	FILE *fp;
-	int numd;
-	char str[MAX_CHAR];
-	double t,x,y,z;
-
-	if (NULL==(fp=fopen(filename,"rt")))
-		return(-1);
-
-	for (numd=0; numd<USER_MOTION_SIZE; numd++)
-	{
-		if (fgets(str, MAX_CHAR, fp)==NULL)
-			break;
-
-		if (EOF==sscanf(str, "%lf,%lf,%lf,%lf", &t, &x, &y, &z)) // Read CSV line
-			break;
-
-		xyz[numd][0] = x;
-		xyz[numd][1] = y;
-		xyz[numd][2] = z;
-	}
-
-	fclose(fp);
-
-	return (numd);
-}
-
 
 int generateNavMsg(gpstime_t g, channel_t *chan, int init)
 {
@@ -472,8 +438,6 @@ void usage(void)
 	fprintf(stderr, "Usage: gps-sdr-sim [options]\n"
 		"Options:\n"
 		"  -e <gps_nav>     RINEX navigation file for GPS ephemerides (required)\n"
-		"  -u <user_motion> User motion file (dynamic mode)\n"
-		"  -g <nmea_gga>    NMEA GGA stream (dynamic mode)\n"
 		"  -c <location>    ECEF X,Y,Z in meters (static mode) e.g. 3967283.154,1022538.181,4872414.484\n"
 		"  -l <location>    Lat,Lon,Hgt (static mode) e.g. 35.681298,139.766247,10.0\n"
 		"  -t <date,time>   Scenario start time YYYY/MM/DD,hh:mm:ss\n"
@@ -503,12 +467,8 @@ int main(int argc, char *argv[])
 
 	gpstime_t grx;
 
-	int numd;
 	char umfile[MAX_CHAR];
 	double xyz[USER_MOTION_SIZE][3];
-
-	bool staticLocationMode = false;
-	bool nmeaGGA = false;
 
 	char navfile[MAX_CHAR];
 
@@ -537,8 +497,7 @@ int main(int argc, char *argv[])
 	umfile[0] = '\0';
 	double samp_freq = 2.6e6;
 	g0.week = -1; // Invalid start time
-	int iduration = USER_MOTION_SIZE;
-	double duration = (double)iduration/10.0; // Default duration
+	double duration = ((double) USER_MOTION_SIZE)/10.0; // Default duration
 	ionoutc.enable = true;
 
 	if (argc<3)
@@ -554,23 +513,12 @@ int main(int argc, char *argv[])
 		case 'e':
 			strcpy(navfile, optarg);
 			break;
-		case 'u':
-			strcpy(umfile, optarg);
-			nmeaGGA = false;
-			break;
-		case 'g':
-			strcpy(umfile, optarg);
-			nmeaGGA = true;
-			break;
 		case 'c':
 			// Static ECEF coordinates input mode
-			staticLocationMode = true;
 			sscanf(optarg,"%lf,%lf,%lf",&xyz[0][0],&xyz[0][1],&xyz[0][2]);
 			break;
 		case 'l':
 			// Static geodetic coordinates input mode
-			// Added by scateu@gmail.com
-			staticLocationMode = true;
 			sscanf(optarg,"%lf,%lf,%lf",&llh[0],&llh[1],&llh[2]);
 			llh[0] = llh[0] / R2D; // convert to RAD
 			llh[1] = llh[1] / R2D; // convert to RAD
@@ -643,22 +591,17 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (umfile[0]==0 && !staticLocationMode)
-	{
-		// Default static location; Tokyo
-		staticLocationMode = true;
-		llh[0] = 35.681298 / R2D;
-		llh[1] = 139.766247 / R2D;
-		llh[2] = 10.0;
-	}
+	// Default static location; Tokyo
+	llh[0] = 35.681298 / R2D;
+	llh[1] = 139.766247 / R2D;
+	llh[2] = 10.0;
 
-	if (duration<0.0 || (duration>((double)USER_MOTION_SIZE)/10.0 && !staticLocationMode) || 
-        (duration>STATIC_MAX_DURATION && staticLocationMode))
+	if (duration < 0.0 || duration > STATIC_MAX_DURATION)
 	{
 		fprintf(stderr, "ERROR: Invalid duration.\n");
 		exit(1);
 	}
-	iduration = (int)(duration*10.0 + 0.5);
+	const int iduration = (int)(duration*10.0 + 0.5);
 
     SampleWriter sample_writer;
     if (sample_writer.OpenFile(output_sample_filename))
@@ -674,37 +617,8 @@ int main(int argc, char *argv[])
 	// Receiver position
 	////////////////////////////////////////////////////////////
 
-	if (!staticLocationMode)
-	{
-		// Read user motion file
-		if (nmeaGGA==true)
-			numd = readNmeaGGA(xyz, umfile);
-		else
-			numd = readUserMotion(xyz, umfile);
-
-		if (numd==-1)
-		{
-			fprintf(stderr, "ERROR: Failed to open user motion / NMEA GGA file.\n");
-			exit(1);
-		}
-		else if (numd==0)
-		{
-			fprintf(stderr, "ERROR: Failed to read user motion / NMEA GGA data.\n");
-			exit(1);
-		}
-
-		// Set simulation duration
-		if (numd>iduration)
-			numd = iduration;
-	} 
-	else 
-	{ 
-		// Static geodetic coordinates input mode: "-l"
-		// Added by scateu@gmail.com 
-		fprintf(stderr, "Using static location mode.\n");
-
-		numd = iduration;
-	}
+    // Always use a static location.
+    const int numd = iduration;
 
 	////////////////////////////////////////////////////////////
 	// Read ephemeris
@@ -919,10 +833,7 @@ int main(int argc, char *argv[])
 				const int sv = chan[i].prn-1;
 
 				// Current pseudorange
-				if (!staticLocationMode)
-					computeRange(&rho, eph[ieph][sv], &ionoutc, grx, xyz[iumd]);
-				else
-					computeRange(&rho, eph[ieph][sv], &ionoutc, grx, xyz[0]);
+				computeRange(&rho, eph[ieph][sv], &ionoutc, grx, xyz[0]);
 
 				chan[i].azel[0] = rho.azel[0];
 				chan[i].azel[1] = rho.azel[1];
@@ -1041,10 +952,7 @@ int main(int argc, char *argv[])
 			}
 
 			// Update channel allocation
-			if (!staticLocationMode)
-				allocateChannel(chan, eph[ieph], ionoutc, grx, xyz[iumd], elvmask);
-			else
-				allocateChannel(chan, eph[ieph], ionoutc, grx, xyz[0], elvmask);
+			allocateChannel(chan, eph[ieph], ionoutc, grx, xyz[0], elvmask);
 
 			// Show details about simulated channels
 			if (verbose)
