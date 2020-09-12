@@ -52,7 +52,7 @@ std::array<int, CA_SEQ_LEN> GeneratePrnSequence(int prn)
 	}
 
 	for (int i = 0, j = CA_SEQ_LEN-delay[prn-1]; i < CA_SEQ_LEN; i++,j++) {
-		ca[i] = (1-g1[i]*g2[j%CA_SEQ_LEN])/2;
+		ca[i] = (1-g1[i]*g2[j%CA_SEQ_LEN])/2 == 0 ? -1 : 1;
     }
 
 	return ca;

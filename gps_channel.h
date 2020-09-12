@@ -44,11 +44,11 @@ class GpsChannel
     }
 
     int ComputeCodeChip() const {
-        return code_sequence_[(int) code_phase]*2-1;
+        return code_sequence_[(int) code_phase];
     }
 
   private:
-    /// \brief C/A code sequence.
+    /// \brief C/A code sequence. All values are either -1 or 1.
     std::array<int, CA_SEQ_LEN> code_sequence_;
 };
 
