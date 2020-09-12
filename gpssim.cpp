@@ -362,7 +362,7 @@ int main(int argc, char *argv[])
 	////////////////////////////////////////////////////////////
 
 	// Default options
-	double samp_freq = 2.6e6;
+	double raw_samp_freq = 2.6e6;
 	simulation_start_gps_time.week = -1; // Invalid start time
 	double duration = 300;     // 5 minutes.
 	ionoutc.enable = true;
@@ -397,8 +397,8 @@ int main(int argc, char *argv[])
 			output_sample_filename.assign(optarg);
 			break;
 		case 's':
-			samp_freq = atof(optarg);
-			if (samp_freq < 1.0e6)
+			raw_samp_freq = atof(optarg);
+			if (raw_samp_freq < 1.0e6)
 			{
 				fprintf(stderr, "ERROR: Invalid sampling frequency.\n");
 				exit(1);
@@ -451,14 +451,16 @@ int main(int argc, char *argv[])
         fprintf(stderr, "ERROR: Failed to open output sample file \"%s\".\n", output_sample_filename.c_str());
     }
 
-    if (!SampleFrequencyIsValid(std::lround(samp_freq))) {
+    const int sample_freq_hz = std::lround(raw_samp_freq);
+    if (!SampleFrequencyIsValid(sample_freq_hz)) {
         fprintf(stderr, "ERROR: Sample frequency %f not an integer divisor of 1GHz\n",
-                samp_freq);
+                raw_samp_freq);
         exit(1);
     }
 
-    // Round the sample frequency to the nearest 10Hz.
-    const double delt = 1.0 / samp_freq;  
+    const double sample_period_s = 1.0 / raw_samp_freq;
+    const int sample_period_ns = 1000000000 / sample_freq_hz;
+    const int samples_in_100ms = 100000000 / sample_period_ns;
 
 	////////////////////////////////////////////////////////////
 	// Read ephemeris
@@ -656,7 +658,6 @@ int main(int argc, char *argv[])
 
 		// There is no intrinsic need to loop here, but we do so to avoid computing
 		// the pseudorange too frequently.
-		const int samples_in_100ms = std::lround((1.0 / 10.0) * samp_freq);
 		for (int isamp = 0; isamp < samples_in_100ms; isamp++)
 		{
 			double i_acc = 0;
@@ -676,7 +677,7 @@ int main(int argc, char *argv[])
 					q_acc += qp;
 
 					// Update code phase
-					chan[i].code_phase += chan[i].f_code * delt;
+					chan[i].code_phase += chan[i].f_code * sample_period_s;
 
 					if (chan[i].code_phase >= CA_SEQ_LEN)
 					{
@@ -704,7 +705,7 @@ int main(int argc, char *argv[])
 					chan[i].UpdateCodeChip();
 
 					// Update carrier phase
-					chan[i].carr_phase += chan[i].f_carr * delt;
+					chan[i].carr_phase += chan[i].f_carr * sample_period_s;
 
 					if (chan[i].carr_phase >= 1.0)
 						chan[i].carr_phase -= 1.0;
