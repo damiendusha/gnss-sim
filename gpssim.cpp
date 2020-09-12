@@ -343,8 +343,7 @@ bool checkSatVisibility(ephem_t eph, gpstime_t g, double *xyz, double elvMask, d
 	double pos[3],vel[3],clk[3],los[3];
 	double tmat[3][3];
 
-	if (eph.vflg != 1)
-		return (-1); // Invalid
+	if (eph.vflg != 1) return false;
 
 	xyz2llh(xyz,llh);
 	ltcmat(llh, tmat);
@@ -354,7 +353,7 @@ bool checkSatVisibility(ephem_t eph, gpstime_t g, double *xyz, double elvMask, d
 	ecef2neu(los, tmat, neu);
 	neu2azel(azel, neu);
 
-	return (azel[1] * R2D > elvMask);
+	return azel[1] * R2D > elvMask;
 }
 
 int allocateChannel(channel_t *chan, ephem_t *eph, ionoutc_t ionoutc, 
