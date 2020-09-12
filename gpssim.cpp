@@ -130,8 +130,8 @@ void computeCodePhase(GpsChannel *chan, const range_t &rho1, const double dt)
 
 	chan->initial_code = ims; // 1 code = 1 ms
 
-	chan->codeCA = chan->ComputeCodeChip();
-	chan->dataBit = chan->ComputeDataBit();
+	chan->UpdateCodeChip();
+	chan->UpdateDataBit();
 
 	// Save current pseudorange
 	chan->rho0 = rho1;
@@ -558,11 +558,6 @@ int main(int argc, char *argv[])
 	// Initialize channels
 	////////////////////////////////////////////////////////////
 
-	// Clear all channels
-	for (int i = 0; i < MAX_CHAN; i++) {
-		chan[i].prn = 0;
-    }
-
 	// Clear satellite allocation flag
 	for (int sv = 0; sv < MAX_SAT; sv++) {
 		allocatedSat[sv] = -1;
@@ -577,10 +572,11 @@ int main(int argc, char *argv[])
 
 	for(int i = 0; i < MAX_CHAN; i++)
 	{
-		if (chan[i].prn>0)
+		if (chan[i].IsEnabled()) {
 			fprintf(stderr, "%02d %6.1f %5.1f %11.1f %5.1f\n", chan[i].prn, 
 				chan[i].azel.azimuth_deg(), chan[i].azel.elevation_deg(), chan[i].
 				rho0.d, chan[i].rho0.iono_delay);
+        }
 	}
 
 	////////////////////////////////////////////////////////////
@@ -626,7 +622,7 @@ int main(int argc, char *argv[])
 
 		for (int i = 0; i < MAX_CHAN; i++)
 		{
-			if (chan[i].prn>0)
+			if (chan[i].IsEnabled())
 			{
 				// Refresh code phase and data bit counters
 				range_t rho;
@@ -656,9 +652,10 @@ int main(int argc, char *argv[])
 
 			for (int i = 0; i < MAX_CHAN; i++)
 			{
-				if (chan[i].prn>0)
+				if (chan[i].IsEnabled())
 				{
-                    const double coeff = chan[i].dataBit * chan[i].codeCA * gain[i];
+                    const double coeff = chan[i].current_data_bit() * 
+                            chan[i].current_code_chip() * gain[i];
                     const double ip = coeff * cos_table.LookupValue(chan[i].carr_phase);
                     const double qp = coeff * sin_table.LookupValue(chan[i].carr_phase);
 
@@ -669,7 +666,7 @@ int main(int argc, char *argv[])
 					// Update code phase
 					chan[i].code_phase += chan[i].f_code * delt;
 
-					if (chan[i].code_phase>=CA_SEQ_LEN)
+					if (chan[i].code_phase >= CA_SEQ_LEN)
 					{
 						chan[i].code_phase -= CA_SEQ_LEN;
 
@@ -687,12 +684,12 @@ int main(int argc, char *argv[])
                             }
 
 							// Set new navigation data bit
-							chan[i].dataBit = chan[i].ComputeDataBit();
+							chan[i].UpdateDataBit();
 						}
 					}
 
 					// Set current code chip
-					chan[i].codeCA = chan[i].ComputeCodeChip();
+					chan[i].UpdateCodeChip();
 
 					// Update carrier phase
 					chan[i].carr_phase += chan[i].f_carr * delt;
