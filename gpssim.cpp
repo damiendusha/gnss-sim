@@ -584,7 +584,6 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "ERROR: Invalid duration.\n");
 		exit(1);
 	}
-	const int iduration = (int)(duration*10.0 + 0.5);
 
     SampleWriter sample_writer;
     if (sample_writer.OpenFile(output_sample_filename))
@@ -594,14 +593,7 @@ int main(int argc, char *argv[])
 
 	// Round the sample frequency to the nearest 10Hz.
 	samp_freq = std::round(samp_freq / 10.0) * 10.0;
-	const double delt = 1.0 / samp_freq;
-
-	////////////////////////////////////////////////////////////
-	// Receiver position
-	////////////////////////////////////////////////////////////
-
-    // Always use a static location.
-    const int numd = iduration;
+	const double delt = 1.0 / samp_freq;  
 
 	////////////////////////////////////////////////////////////
 	// Read ephemeris
@@ -711,7 +703,7 @@ int main(int argc, char *argv[])
 
 	fprintf(stderr, "Start time = %4d/%02d/%02d,%02d:%02d:%02.0f (%d:%.0f)\n", 
 		t0.y, t0.m, t0.d, t0.hh, t0.mm, t0.sec, g0.week, g0.sec);
-	fprintf(stderr, "Duration = %.1f [sec]\n", ((double)numd)/10.0);
+	fprintf(stderr, "Duration = %.1f [sec]\n", duration);
 
 	// Select the current set of ephemerides
 	ieph = -1;
@@ -802,10 +794,11 @@ int main(int argc, char *argv[])
     constellation_gain.SetSatelliteToConstantGain(28, 0.10);
     constellation_gain.SetSatelliteToConstantGain(32, 0.07);
 
-	for (int iumd = 1; iumd < numd; iumd++)
+    const int num_10hz_ticks = std::lround(duration * 10.0);
+	for (int tick_counter_10hz = 1; tick_counter_10hz < num_10hz_ticks; tick_counter_10hz++)
 	{
         // Per-channel gain, maximum value of 1.
-        double gain[MAX_CHAN];
+        std::array<double, MAX_CHAN> gain;
 
 		for (int i = 0; i < MAX_CHAN; i++)
 		{

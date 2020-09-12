@@ -9,11 +9,12 @@
 class NoiseGenerator
 {
   public:
-    NoiseGenerator(double signal_gain, double noise_gain, double output_gain)
+    NoiseGenerator(double signal_gain, double noise_gain, double output_gain, int seed = 42)
         : signal_gain_(signal_gain)
         , output_gain_(output_gain)
         , awgn_(kZeroMean, noise_gain)
     {
+        generator_.seed(seed);
     }
     
     double ScaleAndAddNoise(double sample)
