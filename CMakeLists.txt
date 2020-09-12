@@ -29,6 +29,6 @@ add_executable(gnss_sim
 
 target_link_libraries(gnss_sim m Eigen3::Eigen)
 
-target_compile_options(gnss_sim PRIVATE -O3 -march=native -Wall -Wextra)
+target_compile_options(gnss_sim PRIVATE -g -O3 -march=native -Wall -Wextra)
 
 install(TARGETS gnss_sim DESTINATION bin)

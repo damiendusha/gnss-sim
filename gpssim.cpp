@@ -109,6 +109,8 @@ void computeRange(range_t *rho, const ephem_t &eph, const ionoutc_t &ionoutc,
 void computeCodePhase(GpsChannel *chan, const range_t &rho1, const double dt)
 {
 	// Pseudorange rate.
+    // TODO: The range rate is computed in range_t, but not applied gere
+    // Why is that?
 	const double rhorate = (rho1.range - chan->rho0.range)/dt;
 
 	// Carrier and code frequency.
@@ -119,12 +121,12 @@ void computeCodePhase(GpsChannel *chan, const range_t &rho1, const double dt)
 	const double ms = ((subGpsTime(chan->rho0.g,chan->g0)+6.0) - 
             chan->rho0.range/SPEED_OF_LIGHT)*1000.0;
 
-	int ims = static_cast<int>(ms);
+	int ims = static_cast<int>(std::floor(ms));
 	chan->code_phase = (ms-(double)ims)*CA_SEQ_LEN; // in chip
 
 	chan->initial_word = ims/600; // 1 word = 30 bits = 600 ms
 	ims -= chan->initial_word*600;
-			
+
 	chan->initial_bit = ims/20; // 1 bit = 20 code = 20 ms
 	ims -= chan->initial_bit*20;
 
@@ -460,7 +462,11 @@ int main(int argc, char *argv[])
 
     const double sample_period_s = 1.0 / raw_samp_freq;
     const int sample_period_ns = 1000000000 / sample_freq_hz;
-    const int samples_in_100ms = 100000000 / sample_period_ns;
+
+    // Currently, samples are processed in batches of 100ms
+    const int num_sample_batches = std::lround(duration * 10.0);
+    const int samples_per_batch = 100000000 / sample_period_ns;
+    const double batch_period_s = 0.1;
 
 	////////////////////////////////////////////////////////////
 	// Read ephemeris
@@ -600,7 +606,7 @@ int main(int argc, char *argv[])
 	tstart = clock();
 
 	// Update receiver time
-	current_simulation_time = incGpsTime(current_simulation_time, 0.1);
+	current_simulation_time = incGpsTime(current_simulation_time, batch_period_s);
     
     PeriodicFunctionTable<double, 1024> sin_table(
         [](double t) -> double {return std::sin(t);}, 1.0);
@@ -628,8 +634,7 @@ int main(int argc, char *argv[])
     constellation_gain.SetSatelliteToConstantGain(28, 0.10);
     constellation_gain.SetSatelliteToConstantGain(32, 0.07);
 
-    const int num_10hz_ticks = std::lround(duration * 10.0);
-	for (int tick_counter_10hz = 1; tick_counter_10hz < num_10hz_ticks; tick_counter_10hz++)
+	for (int batch = 1; batch < num_sample_batches; batch++)
 	{
         // Per-channel gain, maximum value of 1.
         std::array<double, MAX_CHAN> gain;
@@ -643,12 +648,13 @@ int main(int argc, char *argv[])
 				const int sv = chan[i].prn-1;
 
 				// Current pseudorange
-				computeRange(&rho, eph[ieph][sv], ionoutc, current_simulation_time, xyz);
+				computeRange(&rho, eph[ieph][sv], ionoutc, 
+                             current_simulation_time, xyz);
 
 				chan[i].azel = rho.azel;
 
 				// Update code phase and data bit counters
-				computeCodePhase(&chan[i], rho, 0.1);
+				computeCodePhase(&chan[i], rho, batch_period_s);
 
 				// Signal gain.
 				gain[i] = constellation_gain.ComputeGain(
@@ -658,7 +664,7 @@ int main(int argc, char *argv[])
 
 		// There is no intrinsic need to loop here, but we do so to avoid computing
 		// the pseudorange too frequently.
-		for (int isamp = 0; isamp < samples_in_100ms; isamp++)
+		for (int sample = 0; sample < samples_per_batch; sample++)
 		{
 			double i_acc = 0;
 			double q_acc = 0;
@@ -669,10 +675,12 @@ int main(int argc, char *argv[])
 				{
                     const double coeff = chan[i].current_data_bit() * 
                             chan[i].current_code_chip() * gain[i];
-                    const double ip = coeff * cos_table.LookupValue(chan[i].carr_phase);
-                    const double qp = coeff * sin_table.LookupValue(chan[i].carr_phase);
+                    const double ip = coeff * 
+                            cos_table.LookupValue(chan[i].carr_phase);
+                    const double qp = coeff * 
+                            sin_table.LookupValue(chan[i].carr_phase);
 
-					// Accumulate for all visible satellites
+					// Accumulate for all visible satellites.
 					i_acc += ip;
 					q_acc += qp;
 
@@ -728,8 +736,10 @@ int main(int argc, char *argv[])
 		// Update navigation message and channel allocation every 30 seconds
 		//
 
-        const int icurrent_simulation_time = (int)(current_simulation_time.sec*10.0+0.5);
-		if (icurrent_simulation_time % 300 == 0) // Every 30 seconds
+        const int icurrent_simulation_time = 
+            (int)(current_simulation_time.sec*10.0+0.5);
+
+        if (icurrent_simulation_time % 300 == 0) // Every 30 seconds
 		{
 			// Update navigation message
 			for (int i = 0; i < MAX_CHAN; i++)
@@ -740,19 +750,21 @@ int main(int argc, char *argv[])
 
 			// Refresh ephemeris and subframes
 			// Quick and dirty fix. Need more elegant way.
-			for (int sv=0; sv < MAX_SAT; sv++)
+			for (int sv = 0; sv < MAX_SAT; sv++)
 			{
 				if (eph[ieph+1][sv].valid)
 				{
-					const double dt = subGpsTime(eph[ieph+1][sv].toc, current_simulation_time);
+					const double dt = subGpsTime(eph[ieph+1][sv].toc, 
+                                                 current_simulation_time);
 					if (dt < SECONDS_IN_HOUR)
 					{
 						ieph++;
 						for (int i = 0; i < MAX_CHAN; i++)
 						{
 							// Generate new subframes if allocated
-							if (chan[i].prn!=0) 
+							if (chan[i].IsEnabled()) { 
 								eph2sbf(eph[ieph][chan[i].prn-1], ionoutc, chan[i].sbf);
+                            }
 						}
 					}
 						
@@ -778,7 +790,7 @@ int main(int argc, char *argv[])
 		}
 
 		// Update receiver time
-		current_simulation_time = incGpsTime(current_simulation_time, 0.1);
+		current_simulation_time = incGpsTime(current_simulation_time, batch_period_s);
 
 		// Update time counter
 		fprintf(stderr, "\rTime into run = %4.1f", subGpsTime(current_simulation_time, simulation_start_gps_time));

@@ -21,7 +21,7 @@ class GpsChannel
     GpsChannel() = default;
     GpsChannel(int in_prn);
 
-    /// \brief PRN for the satellite.
+    /// \brief PRN for the satellite. Zero if the channel is not allocated.
     int prn = 0;
 
 	double f_carr;                                /*< Carrier frequency */
