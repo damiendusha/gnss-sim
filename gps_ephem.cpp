@@ -11,7 +11,7 @@
 
 #include <cmath>
 
-void satpos(ephem_t eph, gpstime_t g, double *pos, double *vel, double *clk)
+void satpos(const ephem_t &eph, gpstime_t g, double *pos, double *vel, double *clk)
 {
 	// Computing Satellite Velocity using the Broadcast Ephemeris
 	// http://www.ngs.noaa.gov/gps-toolbox/bc_velo.htm
@@ -21,7 +21,6 @@ void satpos(ephem_t eph, gpstime_t g, double *pos, double *vel, double *clk)
 	double ek;
 	double ekold;
 	double ekdot;
-	double cek,sek;
 	double pk;
 	double pkdot;
 	double c2pk,s2pk;
@@ -38,7 +37,7 @@ void satpos(ephem_t eph, gpstime_t g, double *pos, double *vel, double *clk)
 	double xpk,ypk;
 	double xpkdot,ypkdot;
 
-	double relativistic, OneMinusecosE, tmp;
+	double OneMinusecosE, tmp;
 
 	tk = g.sec - eph.toe.sec;
 
@@ -52,37 +51,37 @@ void satpos(ephem_t eph, gpstime_t g, double *pos, double *vel, double *clk)
 	ekold = ek + 1.0;
   
 	OneMinusecosE = 0; // Suppress the uninitialized warning.
-	while(fabs(ek-ekold)>1.0E-14)
+	while(std::fabs(ek-ekold) > 1.0E-14)
 	{
 		ekold = ek;
 		OneMinusecosE = 1.0-eph.ecc*cos(ekold);
 		ek = ek + (mk-ekold+eph.ecc*sin(ekold))/OneMinusecosE;
 	}
 
-	sek = sin(ek);
-	cek = cos(ek);
+	const double sek = std::sin(ek);
+	const double cek = std::cos(ek);
 
 	ekdot = eph.n/OneMinusecosE;
 
-	relativistic = -4.442807633E-10*eph.ecc*eph.sqrta*sek;
+	const double relativistic = -4.442807633E-10*eph.ecc*eph.sqrta*sek;
 
-	pk = atan2(eph.sq1e2*sek,cek-eph.ecc) + eph.aop;
+	pk = std::atan2(eph.sq1e2*sek,cek-eph.ecc) + eph.aop;
 	pkdot = eph.sq1e2*ekdot/OneMinusecosE;
 
-	s2pk = sin(2.0*pk);
-	c2pk = cos(2.0*pk);
+	s2pk = std::sin(2.0*pk);
+	c2pk = std::cos(2.0*pk);
 
 	uk = pk + eph.cus*s2pk + eph.cuc*c2pk;
-	suk = sin(uk);
-	cuk = cos(uk);
+	suk = std::sin(uk);
+	cuk = std::cos(uk);
 	ukdot = pkdot*(1.0 + 2.0*(eph.cus*c2pk - eph.cuc*s2pk));
 
 	rk = eph.A*OneMinusecosE + eph.crc*c2pk + eph.crs*s2pk;
 	rkdot = eph.A*eph.ecc*sek*ekdot + 2.0*pkdot*(eph.crs*c2pk - eph.crc*s2pk);
 
 	ik = eph.inc0 + eph.idot*tk + eph.cic*c2pk + eph.cis*s2pk;
-	sik = sin(ik);
-	cik = cos(ik);
+	sik = std::sin(ik);
+	cik = std::cos(ik);
 	ikdot = eph.idot + 2.0*pkdot*(eph.cis*c2pk - eph.cic*s2pk);
 
 	xpk = rk*cuk;
@@ -91,8 +90,8 @@ void satpos(ephem_t eph, gpstime_t g, double *pos, double *vel, double *clk)
 	ypkdot = rkdot*suk + xpk*ukdot;
 
 	ok = eph.omg0 + tk*eph.omgkdot - OMEGA_EARTH*eph.toe.sec;
-	sok = sin(ok);
-	cok = cos(ok);
+	sok = std::sin(ok);
+	cok = std::cos(ok);
 
 	pos[0] = xpk*cok - ypk*cik*sok;
 	pos[1] = xpk*sok + ypk*cik*cok;

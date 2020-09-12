@@ -158,11 +158,10 @@ double ionosphericDelay(const ionoutc_t *ionoutc, gpstime_t g, double *llh, doub
  *  \param[in] g GPS time at time of receiving the signal
  *  \param[in] xyz position of the receiver
  */
-void computeRange(range_t *rho, ephem_t eph, ionoutc_t *ionoutc, gpstime_t g, double xyz[])
+void computeRange(range_t *rho, const ephem_t &eph, ionoutc_t *ionoutc, gpstime_t g, double xyz[])
 {
 	double pos[3],vel[3],clk[2];
 	double los[3];
-	double tau;
 	double range,rate;
 	double xrot,yrot;
 
@@ -174,7 +173,7 @@ void computeRange(range_t *rho, ephem_t eph, ionoutc_t *ionoutc, gpstime_t g, do
 
 	// Receiver to satellite vector and light-time.
 	subVect(los, pos, xyz);
-	tau = normVect(los)/SPEED_OF_LIGHT;
+	const double tau = normVect(los)/SPEED_OF_LIGHT;
 
 	// Extrapolate the satellite position backwards to the transmission time.
 	pos[0] -= vel[0]*tau;
@@ -337,7 +336,7 @@ int generateNavMsg(gpstime_t g, channel_t *chan, int init)
 	return(1);
 }
 
-bool checkSatVisibility(ephem_t eph, gpstime_t g, double *xyz, double elvMask, double *azel)
+bool checkSatVisibility(ephem_t eph, gpstime_t g, double *xyz, double elevation_mask_deg, double *azel)
 {
 	double llh[3],neu[3];
 	double pos[3],vel[3],clk[3],los[3];
@@ -353,11 +352,11 @@ bool checkSatVisibility(ephem_t eph, gpstime_t g, double *xyz, double elvMask, d
 	ecef2neu(los, tmat, neu);
 	neu2azel(azel, neu);
 
-	return azel[1] * R2D > elvMask;
+	return azel[1] * R2D > elevation_mask_deg;
 }
 
 int allocateChannel(channel_t *chan, ephem_t *eph, ionoutc_t ionoutc, 
-                    gpstime_t grx, double *xyz, double elvMask)
+                    gpstime_t grx, double *xyz, double elevation_mask_deg)
 {
 	int num_visible_sats = 0;
 	double azel[2];
@@ -366,7 +365,7 @@ int allocateChannel(channel_t *chan, ephem_t *eph, ionoutc_t ionoutc,
 
 	for (int sv = 0; sv < MAX_SAT; sv++)
 	{
-		if (checkSatVisibility(eph[sv], grx, xyz, 0.0, azel))
+		if (checkSatVisibility(eph[sv], grx, xyz, elevation_mask_deg, azel))
 		{
 			num_visible_sats++;
 
@@ -459,7 +458,7 @@ int main(int argc, char *argv[])
 	double llh[3];
 
 	channel_t chan[MAX_CHAN];
-	double elvmask = 0.0; // in degree
+	double elevation_mask_deg = 0.0;
 
 	gpstime_t grx;
 
@@ -773,7 +772,7 @@ int main(int argc, char *argv[])
 	grx = incGpsTime(g0, 0.0);
 
 	// Allocate visible satellites
-	allocateChannel(chan, eph[ieph], ionoutc, grx, xyz[0], elvmask);
+	allocateChannel(chan, eph[ieph], ionoutc, grx, xyz[0], elevation_mask_deg);
 
 	for(int i = 0; i < MAX_CHAN; i++)
 	{
@@ -948,7 +947,7 @@ int main(int argc, char *argv[])
 			}
 
 			// Update channel allocation
-			allocateChannel(chan, eph[ieph], ionoutc, grx, xyz[0], elvmask);
+			allocateChannel(chan, eph[ieph], ionoutc, grx, xyz[0], elevation_mask_deg);
 
 			// Show details about simulated channels
 			if (verbose)

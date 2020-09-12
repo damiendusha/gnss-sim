@@ -10,6 +10,7 @@
 #pragma once
 
 #include "gpssim.h"
+#include "gps_ephem.h"
 
 /*! \brief Read Ephemeris data from the RINEX Navigation file */
 /*  \param[out] eph Array of Output SV ephemeris data
