@@ -29,9 +29,6 @@
 #include <ctime>
 
 
-int allocatedSat[MAX_SAT];
-
-
 /* !\brief generate the C/A code sequence for a given Satellite Vehicle PRN
  *  \param[in] prn PRN nuber of the Satellite Vehicle
  *  \param[out] ca Caller-allocated integer array of 1023 bytes
@@ -350,7 +347,7 @@ bool checkSatVisibility(const ephem_t &eph, gpstime_t g, double *xyz,
 	return out_azel.elevation_deg() > elevation_mask_deg;
 }
 
-int allocateChannel(channel_t *chan, ephem_t *eph, ionoutc_t ionoutc, 
+int allocateChannel(channel_t *chan, ephem_t *eph, int* allocatedSat, ionoutc_t ionoutc, 
                     gpstime_t grx, double *xyz, double elevation_mask_deg)
 {
 	int num_visible_sats = 0;
@@ -364,7 +361,7 @@ int allocateChannel(channel_t *chan, ephem_t *eph, ionoutc_t ionoutc,
 		{
 			num_visible_sats++;
 
-			if (allocatedSat[sv]==-1) // Visible but not allocated
+			if (allocatedSat[sv] == -1) // Visible but not allocated
 			{
 				// Allocated new satellite
                 int i;
@@ -409,7 +406,7 @@ int allocateChannel(channel_t *chan, ephem_t *eph, ionoutc_t ionoutc,
 					allocatedSat[sv] = i;
 			}
 		}
-		else if (allocatedSat[sv]>=0) // Not visible but allocated
+		else if (allocatedSat[sv] >= 0) // Not visible but allocated
 		{
 			// Clear channel
 			chan[allocatedSat[sv]].prn = 0;
@@ -473,6 +470,8 @@ int main(int argc, char *argv[])
 
 	ionoutc_t ionoutc;
     
+    int allocatedSat[MAX_SAT];
+
     NoiseGenerator noise_generator(1.0, 0.20, 0.5);
 
 	////////////////////////////////////////////////////////////
@@ -761,7 +760,7 @@ int main(int argc, char *argv[])
 	grx = incGpsTime(g0, 0.0);
 
 	// Allocate visible satellites
-	allocateChannel(chan, eph[ieph], ionoutc, grx, xyz, elevation_mask_deg);
+	allocateChannel(chan, eph[ieph], allocatedSat, ionoutc, grx, xyz, elevation_mask_deg);
 
 	for(int i = 0; i < MAX_CHAN; i++)
 	{
@@ -936,7 +935,7 @@ int main(int argc, char *argv[])
 			}
 
 			// Update channel allocation
-			allocateChannel(chan, eph[ieph], ionoutc, grx, xyz, elevation_mask_deg);
+			allocateChannel(chan, eph[ieph], allocatedSat, ionoutc, grx, xyz, elevation_mask_deg);
 
 			// Show details about simulated channels
 			if (verbose)
