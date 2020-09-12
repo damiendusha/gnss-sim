@@ -53,6 +53,7 @@
 
 /*! \brief GPS L1 Carrier frequency */
 #define CARR_FREQ (1575.42e6)
+
 /*! \brief C/A code frequency */
 #define CODE_FREQ (1.023e6)
 #define CARR_TO_CODE (1.0/1540.0)
@@ -72,9 +73,9 @@ struct range_t
 /*! \brief Structure representing a Channel */
 struct channel_t
 {
-	int prn;	              /*< PRN Number */
+	int prn;	              /*< PRN number of the satellite */
 	int ca[CA_SEQ_LEN];       /*< C/A Sequence */
-	double f_carr;	/*< Carrier frequency */
+	double f_carr;            /*< Carrier frequency */
 	double f_code;	/*< Code frequency */
 	double carr_phase;
 	double code_phase; /*< Code phase */

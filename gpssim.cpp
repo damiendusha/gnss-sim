@@ -32,6 +32,7 @@
 namespace {
     
 static constexpr double kWavelengthGpsL1ca_m = 0.190293672798365;
+
 }
 
 /* !\brief generate the C/A code sequence for a given Satellite Vehicle PRN
@@ -40,7 +41,7 @@ static constexpr double kWavelengthGpsL1ca_m = 0.190293672798365;
  */
 void codegen(int *ca, int prn)
 {
-	int delay[] = {
+	constexpr std::array<int, 32> delay = {
 		  5,   6,   7,   8,  17,  18, 139, 140, 141, 251,
 		252, 254, 255, 256, 257, 258, 469, 470, 471, 472,
 		473, 474, 509, 512, 513, 514, 515, 516, 859, 860,
@@ -160,7 +161,8 @@ void computeCodePhase(channel_t *chan, const range_t &rho1, const double dt)
 	chan->f_code = CODE_FREQ + chan->f_carr*CARR_TO_CODE;
 
 	// Initial code phase and data bit counters.
-	const double ms = ((subGpsTime(chan->rho0.g,chan->g0)+6.0) - chan->rho0.range/SPEED_OF_LIGHT)*1000.0;
+	const double ms = ((subGpsTime(chan->rho0.g,chan->g0)+6.0) - 
+            chan->rho0.range/SPEED_OF_LIGHT)*1000.0;
 
 	int ims = static_cast<int>(ms);
 	chan->code_phase = (ms-(double)ims)*CA_SEQ_LEN; // in chip
@@ -186,18 +188,18 @@ void computeCodePhase(channel_t *chan, const range_t &rho1, const double dt)
 int generateNavMsg(gpstime_t g, channel_t *chan, int init)
 {
 	int iwrd,isbf;
-	gpstime_t g0;
+	gpstime_t simulation_start_gps_time;
 	unsigned long wn,tow;
 	unsigned sbfwrd;
 	unsigned long prevwrd;
 	int nib;
 
-	g0.week = g.week;
-	g0.sec = (double)(((unsigned long)(g.sec+0.5))/30UL) * 30.0; // Align with the full frame length = 30 sec
-	chan->g0 = g0; // Data bit reference time
+	simulation_start_gps_time.week = g.week;
+	simulation_start_gps_time.sec = (double)(((unsigned long)(g.sec+0.5))/30UL) * 30.0; // Align with the full frame length = 30 sec
+	chan->g0 = simulation_start_gps_time; // Data bit reference time
 
-	wn = (unsigned long)(g0.week%1024);
-	tow = ((unsigned long)g0.sec)/6UL;
+	wn = (unsigned long)(simulation_start_gps_time.week%1024);
+	tow = ((unsigned long)simulation_start_gps_time.sec)/6UL;
 
 	if (init==1) // Initialize subframe 5
 	{
@@ -359,7 +361,6 @@ void usage(void)
 		"  -c <location>    ECEF X,Y,Z in meters (static mode) e.g. 3967283.154,1022538.181,4872414.484\n"
 		"  -l <location>    Lat,Lon,Hgt (static mode) e.g. 35.681298,139.766247,10.0\n"
 		"  -t <date,time>   Scenario start time YYYY/MM/DD,hh:mm:ss\n"
-		"  -T <date,time>   Overwrite TOC and TOE to scenario start time\n"
 		"  -d <duration>    Duration [sec] (static mode max: %d)\n"
 		"  -o <output>      I/Q sampling data file (default: gpssim.bin)\n"
 		"  -s <frequency>   Sampling frequency [Hz] (default: 2600000)\n"
@@ -374,9 +375,8 @@ int main(int argc, char *argv[])
 {
 	clock_t tstart,tend;
 
-	int neph,ieph;
 	ephem_t eph[EPHEM_ARRAY_SIZE][MAX_SAT];
-	gpstime_t g0;
+	gpstime_t simulation_start_gps_time;
 	
     // Default static location; Tokyo
 	GeodeticPosition llh = GeodeticPosition::FromDegrees(35.681298, 139.766247, 10.0);
@@ -398,9 +398,6 @@ int main(int argc, char *argv[])
 
 	bool verbose = false;
 
-    // Overwrite the TOC and TOE in the RINEX file.
-	bool timeoverwrite = false;
-
 	ionoutc_t ionoutc;
     
     int allocatedSat[MAX_SAT];
@@ -413,7 +410,7 @@ int main(int argc, char *argv[])
 
 	// Default options
 	double samp_freq = 2.6e6;
-	g0.week = -1; // Invalid start time
+	simulation_start_gps_time.week = -1; // Invalid start time
 	double duration = 300;     // 5 minutes.
 	ionoutc.enable = true;
 
@@ -423,7 +420,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	while ((result=getopt(argc,argv,"e:u:g:c:l:o:s:T:t:d:iv"))!=-1)
+	while ((result=getopt(argc,argv,"e:u:g:c:l:o:s:t:d:iv"))!=-1)
 	{
 		switch (result)
 		{
@@ -454,26 +451,6 @@ int main(int argc, char *argv[])
 				exit(1);
 			}
 			break;
-		case 'T':
-			timeoverwrite = true;
-			if (strncmp(optarg, "now", 3)==0)
-			{
-				time_t timer;
-				struct tm *gmt;
-				
-				time(&timer);
-				gmt = gmtime(&timer);
-
-				t0.y = gmt->tm_year+1900;
-				t0.m = gmt->tm_mon+1;
-				t0.d = gmt->tm_mday;
-				t0.hh = gmt->tm_hour;
-				t0.mm = gmt->tm_min;
-				t0.sec = (double)gmt->tm_sec;
-
-				g0 = date2gps(t0);
-			}
-			break;
 		case 't':
 			sscanf(optarg, "%d/%d/%d,%d:%d:%lf", &t0.y, &t0.m, &t0.d, &t0.hh, &t0.mm, &t0.sec);
 			if (t0.y<=1980 || t0.m<1 || t0.m>12 || t0.d<1 || t0.d>31 ||
@@ -483,7 +460,7 @@ int main(int argc, char *argv[])
 				exit(1);
 			}
 			t0.sec = floor(t0.sec);
-			g0 = date2gps(t0);
+			simulation_start_gps_time = date2gps(t0);
 			break;
 		case 'd':
 			duration = atof(optarg);
@@ -529,7 +506,7 @@ int main(int argc, char *argv[])
 	// Read ephemeris
 	////////////////////////////////////////////////////////////
 
-	neph = readRinexNavAll(eph, &ionoutc, rinex2_nav_file);
+	const int neph = readRinexNavAll(eph, &ionoutc, rinex2_nav_file);
 
 	if (neph==0)
 	{
@@ -576,67 +553,35 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (g0.week>=0) // Scenario start time has been set.
+	// Scenario start time has been set.
+	if (simulation_start_gps_time.week >= 0)
 	{
-		if (timeoverwrite==true)
+		if (subGpsTime(simulation_start_gps_time, gmin) < 0.0 || 
+            subGpsTime(gmax, simulation_start_gps_time) < 0.0)
 		{
-			gpstime_t gtmp;
-			double dsec;
-
-			gtmp.week = g0.week;
-			gtmp.sec = (double)(((int)(g0.sec))/7200)*7200.0;
-
-			dsec = subGpsTime(gtmp,gmin);
-
-			// Overwrite the UTC reference week number
-			ionoutc.wnt = gtmp.week;
-			ionoutc.tot = (int)gtmp.sec;
-
-			// Overwrite the TOC and TOE to the scenario start time
-			for (int sv = 0; sv < MAX_SAT; sv++)
-			{
-				for (int i = 0; i < neph; i++)
-				{
-					if (eph[i][sv].valid)
-					{
-						gtmp = incGpsTime(eph[i][sv].toc, dsec);
-						const datetime_t ttmp = gps2date(gtmp);
-						eph[i][sv].toc = gtmp;
-						eph[i][sv].t = ttmp;
-
-						gtmp = incGpsTime(eph[i][sv].toe, dsec);
-						eph[i][sv].toe = gtmp;
-					}
-				}
-			}
-		}
-		else
-		{
-			if (subGpsTime(g0, gmin)<0.0 || subGpsTime(gmax, g0)<0.0)
-			{
-				fprintf(stderr, "ERROR: Invalid start time.\n");
-				fprintf(stderr, "tmin = %4d/%02d/%02d,%02d:%02d:%02.0f (%d:%.0f)\n", 
-					tmin.y, tmin.m, tmin.d, tmin.hh, tmin.mm, tmin.sec,
-					gmin.week, gmin.sec);
-				fprintf(stderr, "tmax = %4d/%02d/%02d,%02d:%02d:%02.0f (%d:%.0f)\n", 
-					tmax.y, tmax.m, tmax.d, tmax.hh, tmax.mm, tmax.sec,
-					gmax.week, gmax.sec);
-				exit(1);
-			}
+			fprintf(stderr, "ERROR: Invalid start time.\n");
+			fprintf(stderr, "tmin = %4d/%02d/%02d,%02d:%02d:%02.0f (%d:%.0f)\n", 
+				tmin.y, tmin.m, tmin.d, tmin.hh, tmin.mm, tmin.sec,
+				gmin.week, gmin.sec);
+			fprintf(stderr, "tmax = %4d/%02d/%02d,%02d:%02d:%02.0f (%d:%.0f)\n", 
+				tmax.y, tmax.m, tmax.d, tmax.hh, tmax.mm, tmax.sec,
+				gmax.week, gmax.sec);
+			exit(1);
 		}
 	}
 	else
 	{
-		g0 = gmin;
+		simulation_start_gps_time = gmin;
 		t0 = tmin;
 	}
 
 	fprintf(stderr, "Start time = %4d/%02d/%02d,%02d:%02d:%02.0f (%d:%.0f)\n", 
-		t0.y, t0.m, t0.d, t0.hh, t0.mm, t0.sec, g0.week, g0.sec);
+		t0.y, t0.m, t0.d, t0.hh, t0.mm, t0.sec, simulation_start_gps_time.week, 
+         simulation_start_gps_time.sec);
 	fprintf(stderr, "Duration = %.1f [sec]\n", duration);
 
 	// Select the current set of ephemerides
-	ieph = -1;
+	int ieph = -1;
 
 	for (int i = 0; i < neph; i++)
 	{
@@ -644,7 +589,7 @@ int main(int argc, char *argv[])
 		{
 			if (eph[i][sv].valid)
 			{
-				const double dt = subGpsTime(g0, eph[i][sv].toc);
+				const double dt = subGpsTime(simulation_start_gps_time, eph[i][sv].toc);
 				if (dt>=-SECONDS_IN_HOUR && dt<SECONDS_IN_HOUR)
 				{
 					ieph = i;
@@ -678,7 +623,7 @@ int main(int argc, char *argv[])
     }
 
 	// Initial reception time
-	grx = incGpsTime(g0, 0.0);
+	grx = incGpsTime(simulation_start_gps_time, 0.0);
 
 	// Allocate visible satellites
 	allocateChannel(chan, eph[ieph], allocatedSat, ionoutc, grx, xyz, elevation_mask_deg);
@@ -877,7 +822,7 @@ int main(int argc, char *argv[])
 		grx = incGpsTime(grx, 0.1);
 
 		// Update time counter
-		fprintf(stderr, "\rTime into run = %4.1f", subGpsTime(grx, g0));
+		fprintf(stderr, "\rTime into run = %4.1f", subGpsTime(grx, simulation_start_gps_time));
 		fflush(stdout);
 	}
 
