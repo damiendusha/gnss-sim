@@ -158,11 +158,10 @@ double ionosphericDelay(const ionoutc_t *ionoutc, gpstime_t g, double *llh, doub
  *  \param[in] g GPS time at time of receiving the signal
  *  \param[in] xyz position of the receiver
  */
-void computeRange(range_t *rho, const ephem_t &eph, ionoutc_t *ionoutc, gpstime_t g, double xyz[])
+void computeRange(range_t *rho, const ephem_t &eph, const ionoutc_t *ionoutc, gpstime_t g, double xyz[])
 {
 	double pos[3],vel[3],clk[2];
 	double los[3];
-	double range,rate;
 	double xrot,yrot;
 
 	double llh[3],neu[3];
@@ -188,14 +187,14 @@ void computeRange(range_t *rho, const ephem_t &eph, ionoutc_t *ionoutc, gpstime_
 
 	// New observer to satellite vector and satellite range.
 	subVect(los, pos, xyz);
-	range = normVect(los);
+	const double range = normVect(los);
 	rho->d = range;
 
 	// Pseudorange.
 	rho->range = range - SPEED_OF_LIGHT*clk[0];
 
 	// Relative velocity of SV and receiver.
-	rate = dotProd(vel, los)/range;
+	const double rate = dotProd(vel, los)/range;
 
 	// Pseudorange rate.
 	rho->rate = rate; // - SPEED_OF_LIGHT*clk[1];
@@ -298,14 +297,6 @@ int generateNavMsg(gpstime_t g, channel_t *chan, int init)
 
 			prevwrd = chan->dwrd[iwrd];
 		}
-		/*
-		// Sanity check
-		if (((chan->dwrd[1])&(0x1FFFFUL<<13)) != ((tow&0x1FFFFUL)<<13))
-		{
-			fprintf(stderr, "\nWARNING: Invalid TOW in subframe 5.\n");
-			return(0);
-		}
-		*/
 	}
 
 	for (isbf=0; isbf<N_SBF; isbf++)
@@ -462,7 +453,6 @@ int main(int argc, char *argv[])
 
 	gpstime_t grx;
 
-	char umfile[MAX_CHAR];
 	double xyz[USER_MOTION_SIZE][3];
 
 	char navfile[MAX_CHAR];
@@ -489,7 +479,6 @@ int main(int argc, char *argv[])
 
 	// Default options
 	navfile[0] = '\0';
-	umfile[0] = '\0';
 	double samp_freq = 2.6e6;
 	g0.week = -1; // Invalid start time
 	double duration = ((double) USER_MOTION_SIZE)/10.0; // Default duration

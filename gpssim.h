@@ -80,14 +80,14 @@
 #define EPHEM_ARRAY_SIZE (13) // for daily GPS broadcast ephemers file (brdc)
 
 /*! \brief Structure representing GPS time */
-typedef struct
+struct gpstime_t
 {
 	int week;	/*!< GPS week number (since January 1980) */
 	double sec; 	/*!< second inside the GPS \a week */
-} gpstime_t;
+};
 
 /*! \brief Structure repreenting UTC time */
-typedef struct
+struct datetime_t
 {
 	int y; 		/*!< Calendar year */
 	int m;		/*!< Calendar month */
@@ -95,9 +95,9 @@ typedef struct
 	int hh;		/*!< Calendar hour */
 	int mm;		/*!< Calendar minutes */
 	double sec;	/*!< Calendar seconds */
-} datetime_t;
+};
 
-typedef struct
+struct ionoutc_t
 {
 	bool enable;
 	int vflg;
@@ -106,9 +106,9 @@ typedef struct
 	double A0,A1;
 	int dtls,tot,wnt;
 	int dtlsf,dn,wnlsf;
-} ionoutc_t;
+};
 
-typedef struct
+struct range_t
 {
 	gpstime_t g;
 	double range; // pseudorange
@@ -116,10 +116,10 @@ typedef struct
 	double d; // geometric distance
 	double azel[2];
 	double iono_delay;
-} range_t;
+};
 
 /*! \brief Structure representing a Channel */
-typedef struct
+struct channel_t
 {
 	int prn;	/*< PRN Number */
 	int ca[CA_SEQ_LEN]; /*< C/A Sequence */
@@ -137,6 +137,6 @@ typedef struct
 	int codeCA;	/*!< current C/A code */
 	double azel[2];
 	range_t rho0;
-} channel_t;
+};
 
 #endif

@@ -16,42 +16,18 @@ void satpos(const ephem_t &eph, gpstime_t g, double *pos, double *vel, double *c
 	// Computing Satellite Velocity using the Broadcast Ephemeris
 	// http://www.ngs.noaa.gov/gps-toolbox/bc_velo.htm
 
-	double tk;
-	double mk;
-	double ek;
-	double ekold;
-	double ekdot;
-	double pk;
-	double pkdot;
-	double c2pk,s2pk;
-	double uk;
-	double ukdot;
-	double cuk,suk;
-	double ok;
-	double sok,cok;
-	double ik;
-	double ikdot;
-	double sik,cik;
-	double rk;
-	double rkdot;
-	double xpk,ypk;
-	double xpkdot,ypkdot;
-
-	double OneMinusecosE, tmp;
-
-	tk = g.sec - eph.toe.sec;
-
-	if(tk>SECONDS_IN_HALF_WEEK)
+	double tk = g.sec - eph.toe.sec;
+	if(tk > SECONDS_IN_HALF_WEEK)
 		tk -= SECONDS_IN_WEEK;
-	else if(tk<-SECONDS_IN_HALF_WEEK)
+	else if(tk < -SECONDS_IN_HALF_WEEK)
 		tk += SECONDS_IN_WEEK;
 
-	mk = eph.m0 + eph.n*tk;
-	ek = mk;
-	ekold = ek + 1.0;
+	const double mk = eph.m0 + eph.n*tk;
+	double ek = mk;
+	double ekold = ek + 1.0;
   
-	OneMinusecosE = 0; // Suppress the uninitialized warning.
-	while(std::fabs(ek-ekold) > 1.0E-14)
+	double OneMinusecosE = 0; // Suppress the uninitialized warning.
+	while (std::fabs(ek-ekold) > 1.0E-14)
 	{
 		ekold = ek;
 		OneMinusecosE = 1.0-eph.ecc*cos(ekold);
@@ -61,43 +37,43 @@ void satpos(const ephem_t &eph, gpstime_t g, double *pos, double *vel, double *c
 	const double sek = std::sin(ek);
 	const double cek = std::cos(ek);
 
-	ekdot = eph.n/OneMinusecosE;
+	const double ekdot = eph.n/OneMinusecosE;
 
 	const double relativistic = -4.442807633E-10*eph.ecc*eph.sqrta*sek;
 
-	pk = std::atan2(eph.sq1e2*sek,cek-eph.ecc) + eph.aop;
-	pkdot = eph.sq1e2*ekdot/OneMinusecosE;
+	const double pk = std::atan2(eph.sq1e2*sek,cek-eph.ecc) + eph.aop;
+	const double pkdot = eph.sq1e2*ekdot/OneMinusecosE;
 
-	s2pk = std::sin(2.0*pk);
-	c2pk = std::cos(2.0*pk);
+	const double s2pk = std::sin(2.0*pk);
+	const double c2pk = std::cos(2.0*pk);
 
-	uk = pk + eph.cus*s2pk + eph.cuc*c2pk;
-	suk = std::sin(uk);
-	cuk = std::cos(uk);
-	ukdot = pkdot*(1.0 + 2.0*(eph.cus*c2pk - eph.cuc*s2pk));
+	const double uk = pk + eph.cus*s2pk + eph.cuc*c2pk;
+	const double suk = std::sin(uk);
+	const double cuk = std::cos(uk);
+	const double ukdot = pkdot*(1.0 + 2.0*(eph.cus*c2pk - eph.cuc*s2pk));
 
-	rk = eph.A*OneMinusecosE + eph.crc*c2pk + eph.crs*s2pk;
-	rkdot = eph.A*eph.ecc*sek*ekdot + 2.0*pkdot*(eph.crs*c2pk - eph.crc*s2pk);
+	const double rk = eph.A*OneMinusecosE + eph.crc*c2pk + eph.crs*s2pk;
+	const double rkdot = eph.A*eph.ecc*sek*ekdot + 2.0*pkdot*(eph.crs*c2pk - eph.crc*s2pk);
 
-	ik = eph.inc0 + eph.idot*tk + eph.cic*c2pk + eph.cis*s2pk;
-	sik = std::sin(ik);
-	cik = std::cos(ik);
-	ikdot = eph.idot + 2.0*pkdot*(eph.cis*c2pk - eph.cic*s2pk);
+	const double ik = eph.inc0 + eph.idot*tk + eph.cic*c2pk + eph.cis*s2pk;
+	const double sik = std::sin(ik);
+	const double cik = std::cos(ik);
+	const double ikdot = eph.idot + 2.0*pkdot*(eph.cis*c2pk - eph.cic*s2pk);
 
-	xpk = rk*cuk;
-	ypk = rk*suk;
-	xpkdot = rkdot*cuk - ypk*ukdot;
-	ypkdot = rkdot*suk + xpk*ukdot;
+	const double xpk = rk*cuk;
+	const double ypk = rk*suk;
+	const double xpkdot = rkdot*cuk - ypk*ukdot;
+	const double ypkdot = rkdot*suk + xpk*ukdot;
 
-	ok = eph.omg0 + tk*eph.omgkdot - OMEGA_EARTH*eph.toe.sec;
-	sok = std::sin(ok);
-	cok = std::cos(ok);
+	const double ok = eph.omg0 + tk*eph.omgkdot - OMEGA_EARTH*eph.toe.sec;
+	const double sok = std::sin(ok);
+	const double cok = std::cos(ok);
 
 	pos[0] = xpk*cok - ypk*cik*sok;
 	pos[1] = xpk*sok + ypk*cik*cok;
 	pos[2] = ypk*sik;
 
-	tmp = ypkdot*cik - ypk*sik*ikdot;
+	const double tmp = ypkdot*cik - ypk*sik*ikdot;
 
 	vel[0] = -eph.omgkdot*pos[1] + xpkdot*cok - tmp*sok;
 	vel[1] = eph.omgkdot*pos[0] + xpkdot*sok + tmp*cok;
@@ -105,10 +81,9 @@ void satpos(const ephem_t &eph, gpstime_t g, double *pos, double *vel, double *c
 
 	// Satellite clock correction
 	tk = g.sec - eph.toc.sec;
-
-	if(tk>SECONDS_IN_HALF_WEEK)
+	if(tk > SECONDS_IN_HALF_WEEK)
 		tk -= SECONDS_IN_WEEK;
-	else if(tk<-SECONDS_IN_HALF_WEEK)
+	else if(tk < -SECONDS_IN_HALF_WEEK)
 		tk += SECONDS_IN_WEEK;
 
 	clk[0] = eph.af0 + tk*(eph.af1 + tk*eph.af2) + relativistic - eph.tgd;  
