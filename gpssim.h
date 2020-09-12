@@ -70,33 +70,4 @@ struct range_t
 	double iono_delay;
 };
 
-/*! \brief Structure representing a Channel */
-struct channel_t
-{
-	int prn;	              /*< PRN number of the satellite */
-	int ca[CA_SEQ_LEN];       /*< C/A Sequence */
-	double f_carr;            /*< Carrier frequency */
-	double f_code;	/*< Code frequency */
-	double carr_phase;
-	double code_phase; /*< Code phase */
-	gpstime_t g0;	/*!< GPS time at start */
-	unsigned long sbf[5][N_DWRD_SBF]; /*!< current subframe */
-	unsigned long dwrd[N_DWRD]; /*!< Data words of sub-frame */
-	int initial_word;	/*!< initial word */
-	int initial_bit;	/*!< initial bit */
-	int initial_code;	/*!< initial code */
-	int dataBit;	/*!< current data bit */
-	int codeCA;	/*!< current C/A code */
-	AzimuthElevation azel;
-	range_t rho0;
-
-    int ComputeDataBit() const {
-        return (int)((dwrd[initial_word] >> (29 - initial_bit)) & 0x1UL)*2 - 1;
-    }
-
-    int ComputeCodeChip() const {
-        return ca[(int) code_phase]*2-1;
-    }
-};
-
 #endif

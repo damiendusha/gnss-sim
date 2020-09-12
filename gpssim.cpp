@@ -8,7 +8,7 @@
 // Copyright (c) 2015-2020 Takuji Ebinuma
 
 #include "gpssim.h"
-#include "rinex2_reader.h"
+#include "gps_channel.h"
 #include "gps_time.h"
 #include "gps_ephem.h"
 #include "gps_math.h"
@@ -16,6 +16,7 @@
 #include "geodesy.h"
 #include "ionosphere.h"
 #include "noise_generator.h"
+#include "rinex2_reader.h"
 #include "sin_table.h"
 #include "sample_writer.h"
 #include "satellite_gain.h"
@@ -33,53 +34,7 @@ namespace {
     
 static constexpr double kWavelengthGpsL1ca_m = 0.190293672798365;
 
-}
-
-/* !\brief generate the C/A code sequence for a given Satellite Vehicle PRN
- *  \param[in] prn PRN nuber of the Satellite Vehicle
- *  \param[out] ca Caller-allocated integer array of 1023 bytes
- */
-void codegen(int *ca, int prn)
-{
-	constexpr std::array<int, 32> delay = {
-		  5,   6,   7,   8,  17,  18, 139, 140, 141, 251,
-		252, 254, 255, 256, 257, 258, 469, 470, 471, 472,
-		473, 474, 509, 512, 513, 514, 515, 516, 859, 860,
-		861, 862};
-	
-	int g1[CA_SEQ_LEN], g2[CA_SEQ_LEN];
-	int r1[N_DWRD_SBF], r2[N_DWRD_SBF];
-
-	if (prn < 1 || prn > 32) {
-		return;
-    }
-
-	for (int i = 0; i < N_DWRD_SBF; i++) {
-		r1[i] = r2[i] = -1;
-    }
-
-	for (int i = 0; i < CA_SEQ_LEN; i++)
-	{
-		g1[i] = r1[9];
-		g2[i] = r2[9];
-		int c1 = r1[2]*r1[9];
-		int c2 = r2[1]*r2[2]*r2[5]*r2[7]*r2[8]*r2[9];
-
-		for (int j = 9; j > 0; j--) 
-		{
-			r1[j] = r1[j-1];
-			r2[j] = r2[j-1];
-		}
-		r1[0] = c1;
-		r2[0] = c2;
-	}
-
-	for (int i = 0, j = CA_SEQ_LEN-delay[prn-1]; i < CA_SEQ_LEN; i++,j++) {
-		ca[i] = (1-g1[i]*g2[j%CA_SEQ_LEN])/2;
-    }
-
-	return;
-}
+}   // namespace
 
 
 /*! \brief Compute range between a satellite and the receiver
@@ -151,7 +106,7 @@ void computeRange(range_t *rho, const ephem_t &eph, const ionoutc_t &ionoutc,
  *  \param[in] rho1 Current range, after \a dt has expired
  *  \param[in dt delta-t (time difference) in seconds
  */
-void computeCodePhase(channel_t *chan, const range_t &rho1, const double dt)
+void computeCodePhase(GpsChannel *chan, const range_t &rho1, const double dt)
 {
 	// Pseudorange rate.
 	const double rhorate = (rho1.range - chan->rho0.range)/dt;
@@ -185,7 +140,7 @@ void computeCodePhase(channel_t *chan, const range_t &rho1, const double dt)
 }
 
 
-void generateNavMsg(gpstime_t g, channel_t *chan, int init)
+void generateNavMsg(gpstime_t g, GpsChannel *chan, int init)
 {
 	unsigned long previous_word = 0;
 
@@ -273,8 +228,9 @@ bool checkSatVisibility(const ephem_t &eph, gpstime_t g, double *xyz,
 	return out_azel.elevation_deg() > elevation_mask_deg;
 }
 
-int allocateChannel(channel_t *chan, ephem_t *eph, int* allocatedSat, ionoutc_t ionoutc, 
-                    gpstime_t current_simulation_time, double *xyz, double elevation_mask_deg)
+int allocateChannel(GpsChannel *chan, ephem_t *eph, int* allocatedSat, 
+                    ionoutc_t ionoutc, gpstime_t current_simulation_time, 
+                    double *xyz, double elevation_mask_deg)
 {
 	int num_visible_sats = 0;
 	AzimuthElevation azel;
@@ -293,14 +249,11 @@ int allocateChannel(channel_t *chan, ephem_t *eph, int* allocatedSat, ionoutc_t 
                 int i;
 				for (i = 0; i < MAX_CHAN; i++)
 				{
-					if (chan[i].prn==0)
+					if (chan[i].prn == 0)
 					{
 						// Initialize channel
-						chan[i].prn = sv+1;
+						chan[i] = GpsChannel(sv+1);
 						chan[i].azel = azel;
-
-						// C/A code generation
-						codegen(chan[i].ca, chan[i].prn);
 
 						// Generate subframe
 						eph2sbf(eph[sv], ionoutc, chan[i].sbf);
@@ -376,7 +329,7 @@ int main(int argc, char *argv[])
     // Default static location; Tokyo
 	GeodeticPosition llh = GeodeticPosition::FromDegrees(35.681298, 139.766247, 10.0);
 
-	channel_t chan[MAX_CHAN];
+	GpsChannel chan[MAX_CHAN];
 	double elevation_mask_deg = 0.0;
 
 	double xyz[3];

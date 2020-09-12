@@ -16,6 +16,7 @@ find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 add_executable(gnss_sim 
     gpssim.cpp
     antenna_gain.cpp
+    gps_channel.cpp
     gps_ephem.cpp
     gps_subframe.cpp
     gps_time.cpp
