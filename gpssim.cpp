@@ -106,86 +106,12 @@ range_t ComputeRange(const ephem_t &eph, const ionoutc_t &ionoutc,
 }
 
 
-
-
-void generateNavMsg(gpstime_t g, GpsChannel *chan, int init)
-{
-	unsigned long previous_word = 0;
-
-    // Align with the full frame length = 30 sec
-    gpstime_t g0;
-    g0.week = g.week;
-    g0.sec = (double)(((unsigned long)(g.sec+0.5))/30UL) * 30.0;
-
-    chan->dataframe_reference_time = g0; // Data bit reference time
-
-    const unsigned long wn = (unsigned long)(g0.week%1024);
-    unsigned long tow = ((unsigned long)g0.sec)/6UL;
-
-	if (init == 1) // Initialize subframe 5
-	{
-		for (int iwrd = 0; iwrd < N_DWRD_SBF; iwrd++)
-		{
-			unsigned int sbfwrd = chan->sbf[4][iwrd];
-
-			// Add TOW-count message into HOW
-			if (iwrd==1)
-				sbfwrd |= ((tow&0x1FFFFUL)<<13);
-
-			// Compute checksum
-			sbfwrd |= (previous_word<<30) & 0xC0000000UL; // 2 LSBs of the previous transmitted word
-			const int nib = ((iwrd==1)||(iwrd==9))?1:0; // Non-information bearing bits for word 2 and 10
-			chan->dwrd[iwrd] = computeChecksum(sbfwrd, nib);
-
-			previous_word = chan->dwrd[iwrd];
-		}
-	}
-	else // Save subframe 5
-	{
-		for (int iwrd = 0; iwrd < N_DWRD_SBF; iwrd++)
-		{
-			chan->dwrd[iwrd] = chan->dwrd[N_DWRD_SBF*N_SBF+iwrd];
-
-			previous_word = chan->dwrd[iwrd];
-		}
-	}
-
-	for (int isbf = 0; isbf < N_SBF; isbf++)
-	{
-		tow++;
-
-		for (int iwrd = 0; iwrd < N_DWRD_SBF; iwrd++)
-		{
-			unsigned int sbfwrd = chan->sbf[isbf][iwrd];
-
-			// Add transmission week number to Subframe 1
-			if ((isbf==0)&&(iwrd==2))
-				sbfwrd |= (wn&0x3FFUL)<<20;
-
-			// Add TOW-count message into HOW
-			if (iwrd==1)
-				sbfwrd |= ((tow&0x1FFFFUL)<<13);
-
-			// Compute checksum
-			sbfwrd |= (previous_word<<30) & 0xC0000000UL; // 2 LSBs of the previous transmitted word
-			const int nib = ((iwrd==1)||(iwrd==9))?1:0; // Non-information bearing bits for word 2 and 10
-			chan->dwrd[(isbf+1)*N_DWRD_SBF+iwrd] = computeChecksum(sbfwrd, nib);
-
-			previous_word = chan->dwrd[(isbf+1)*N_DWRD_SBF+iwrd];
-		}
-	}
-}
-
-bool checkSatVisibility(const ephem_t &eph, gpstime_t g, 
-                        const Eigen::Vector3d &e_pos_e_a, 
-                        double elevation_mask_deg, AzimuthElevation &out_azel)
+AzimuthElevation ComputeSatelliteAzel(const ephem_t &eph, gpstime_t g, 
+                        const Eigen::Vector3d &e_pos_e_a)
 {
 	double neu[3];
 	double pos[3],vel[3],clk[3],los[3];
 	double tmat[3][3];
-
-	if (!eph.valid)
-        return false;
 
 	const GeodeticPosition llh = xyz2llh(e_pos_e_a);
 	ltcmat(llh, tmat);
@@ -193,24 +119,27 @@ bool checkSatVisibility(const ephem_t &eph, gpstime_t g,
 	satpos(eph, g, pos, vel, clk);
 	subVect(los, pos, e_pos_e_a);
 	ecef2neu(los, tmat, neu);
-	out_azel = neu2azel(neu);
-
-	return out_azel.elevation_deg() > elevation_mask_deg;
+	return neu2azel(neu);
 }
 
 int allocateChannel(GpsChannel *chan, ephem_t *eph, int* allocatedSat, 
                     ionoutc_t ionoutc, gpstime_t current_simulation_time, 
                     const Eigen::Vector3d &e_pos_e_a, double elevation_mask_deg)
 {
-	int num_visible_sats = 0;
-	AzimuthElevation azel;
+    int num_visible_sats = 0;
 
 	for (int sv = 0; sv < MAX_SAT; sv++)
 	{
-		if (checkSatVisibility(eph[sv], current_simulation_time, e_pos_e_a, elevation_mask_deg, azel))
+        AzimuthElevation azel;
+        bool is_visible = false;
+        if (eph[sv].valid) {
+            azel = ComputeSatelliteAzel(eph[sv], current_simulation_time, e_pos_e_a);
+            is_visible = azel.elevation_deg() > elevation_mask_deg;
+        }
+        
+		if (is_visible)
 		{
 			num_visible_sats++;
-
 			if (allocatedSat[sv] == -1) // Visible but not allocated
 			{
 				// Allocated new satellite
@@ -227,7 +156,7 @@ int allocateChannel(GpsChannel *chan, ephem_t *eph, int* allocatedSat,
 						eph2sbf(eph[sv], ionoutc, chan[i].sbf);
 
 						// Generate navigation message
-						generateNavMsg(current_simulation_time, &chan[i], 1);
+						chan[i].GenerateNavMsg(current_simulation_time, 1);
 
 						// Initialize pseudorange
                         range_t rho = ComputeRange(eph[sv], ionoutc, 
@@ -686,8 +615,9 @@ int main(int argc, char *argv[])
 			// Update navigation message
 			for (int i = 0; i < MAX_CHAN; i++)
 			{
-				if (chan[i].prn>0)
-					generateNavMsg(current_simulation_time, &chan[i], 0);
+				if (chan[i].prn>0) {
+					chan[i].GenerateNavMsg(current_simulation_time, 0);
+                }
 			}
 
 			// Refresh ephemeris and subframes

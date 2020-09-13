@@ -8,8 +8,10 @@
 // Copyright (c) 2015-2020 Takuji Ebinuma
 
 #include "gps_channel.h"
+#include "gps_subframe.h"
 
 #include <cassert>
+
 
 namespace {
     
@@ -76,9 +78,9 @@ GpsChannel::GpsChannel(int in_prn)
 void GpsChannel::ComputeCodePhase(const range_t &rho1, const double dt)
 {
 	// Pseudorange rate.
-    // TODO: The range rate is computed in range_t, but not applied gere
+    // TODO: The range rate is computed in range_t, but not applied here
     // Why is that?
-	const double rhorate = (rho1.range - rho0.range)/dt;
+	const double rhorate = (rho1.range - rho0.range) / dt;
 
 	// Carrier and code frequency.
 	f_carr = -rhorate * (1.0 / kWavelengthGpsL1ca_m);
@@ -105,3 +107,72 @@ void GpsChannel::ComputeCodePhase(const range_t &rho1, const double dt)
 	// Save current pseudorange
 	rho0 = rho1;
 }
+
+void GpsChannel::GenerateNavMsg(gpstime_t g, int init)
+{
+	unsigned long previous_word = 0;
+
+    // Align with the full frame length = 30 sec
+    gpstime_t g0;
+    g0.week = g.week;
+    g0.sec = (double)(((unsigned long)(g.sec+0.5))/30UL) * 30.0;
+
+    dataframe_reference_time = g0; // Data bit reference time
+
+    const unsigned long wn = (unsigned long)(g0.week%1024);
+    unsigned long tow = ((unsigned long)g0.sec)/6UL;
+
+	if (init == 1) // Initialize subframe 5
+	{
+		for (int iwrd = 0; iwrd < N_DWRD_SBF; iwrd++)
+		{
+			unsigned int sbfwrd = sbf[4][iwrd];
+
+			// Add TOW-count message into HOW
+			if (iwrd==1)
+				sbfwrd |= ((tow&0x1FFFFUL)<<13);
+
+			// Compute checksum
+			sbfwrd |= (previous_word<<30) & 0xC0000000UL; // 2 LSBs of the previous transmitted word
+			const int nib = ((iwrd==1)||(iwrd==9))?1:0; // Non-information bearing bits for word 2 and 10
+			dwrd[iwrd] = computeChecksum(sbfwrd, nib);
+
+			previous_word = dwrd[iwrd];
+		}
+	}
+	else // Save subframe 5
+	{
+		for (int iwrd = 0; iwrd < N_DWRD_SBF; iwrd++)
+		{
+			dwrd[iwrd] = dwrd[N_DWRD_SBF*N_SBF+iwrd];
+
+			previous_word = dwrd[iwrd];
+		}
+	}
+
+	for (int isbf = 0; isbf < N_SBF; isbf++)
+	{
+		tow++;
+
+		for (int iwrd = 0; iwrd < N_DWRD_SBF; iwrd++)
+		{
+			unsigned int sbfwrd = sbf[isbf][iwrd];
+
+			// Add transmission week number to Subframe 1
+			if ((isbf==0)&&(iwrd==2))
+				sbfwrd |= (wn&0x3FFUL)<<20;
+
+			// Add TOW-count message into HOW
+			if (iwrd==1)
+				sbfwrd |= ((tow&0x1FFFFUL)<<13);
+
+			// Compute checksum
+			sbfwrd |= (previous_word<<30) & 0xC0000000UL; // 2 LSBs of the previous transmitted word
+			const int nib = ((iwrd==1)||(iwrd==9))?1:0; // Non-information bearing bits for word 2 and 10
+			dwrd[(isbf+1)*N_DWRD_SBF+iwrd] = computeChecksum(sbfwrd, nib);
+
+			previous_word = dwrd[(isbf+1)*N_DWRD_SBF+iwrd];
+		}
+	}
+}
+

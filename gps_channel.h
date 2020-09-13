@@ -79,6 +79,9 @@ class GpsChannel
         
         UpdateCodeChip();
     }
+    
+    void GenerateNavMsg(gpstime_t g, int init);
+
 
   private:
     /// \brief C/A code sequence. All values are either -1 or 1.
