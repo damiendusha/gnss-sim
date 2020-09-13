@@ -176,3 +176,9 @@ void GpsChannel::GenerateNavMsg(gpstime_t g, int init)
 	}
 }
 
+void GpsChannel::SetEphemeris(const ephem_t &ephemeris, const ionoutc_t &ionoutc)
+{
+    eph2sbf(ephemeris, ionoutc, sbf);
+}
+
+

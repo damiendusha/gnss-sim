@@ -153,7 +153,7 @@ int allocateChannel(GpsChannel *chan, ephem_t *eph, int* allocatedSat,
 						chan[i].azel = azel;
 
 						// Generate subframe
-						eph2sbf(eph[sv], ionoutc, chan[i].sbf);
+						chan[i].SetEphemeris(eph[sv], ionoutc);
 
 						// Generate navigation message
 						chan[i].GenerateNavMsg(current_simulation_time, 1);
@@ -615,8 +615,8 @@ int main(int argc, char *argv[])
 			// Update navigation message
 			for (int i = 0; i < MAX_CHAN; i++)
 			{
-				if (chan[i].prn>0) {
-					chan[i].GenerateNavMsg(current_simulation_time, 0);
+                if (chan[i].prn>0) {
+                    chan[i].GenerateNavMsg(current_simulation_time, 0);
                 }
 			}
 
@@ -635,7 +635,7 @@ int main(int argc, char *argv[])
 						{
 							// Generate new subframes if allocated
 							if (chan[i].IsEnabled()) { 
-								eph2sbf(eph[ieph][chan[i].prn-1], ionoutc, chan[i].sbf);
+								chan[i].SetEphemeris(eph[ieph][chan[i].prn-1], ionoutc);
                             }
 						}
 					}

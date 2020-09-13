@@ -11,6 +11,8 @@
 #define GPS_CHANNEL_H_
 
 #include "gpssim.h"
+#include "gps_ephem.h"
+#include "ionosphere.h"
 
 #include <array>
 
@@ -30,8 +32,6 @@ class GpsChannel
     /// \brief GPS time at the start of the full data frame (i.e. 30s boundary).
     gpstime_t dataframe_reference_time;
 
-	unsigned long sbf[5][N_DWRD_SBF]; /*!< current subframe */
-	unsigned long dwrd[N_DWRD]; /*!< Data words of sub-frame */
 	AzimuthElevation azel;
 	range_t rho0;
 
@@ -82,6 +82,8 @@ class GpsChannel
     
     void GenerateNavMsg(gpstime_t g, int init);
 
+    void SetEphemeris(const ephem_t &eph, const ionoutc_t &ionoutc);
+
 
   private:
     /// \brief C/A code sequence. All values are either -1 or 1.
@@ -101,7 +103,13 @@ class GpsChannel
     /// \brief Code frequency.
     double f_code;
     
-	double code_phase; /*< Code phase */
+    double code_phase; /*< Code phase */
+
+    /// \brief Current subframe.
+    unsigned long sbf[5][N_DWRD_SBF];
+
+    /// \brief Data words of the subframe.
+    unsigned long dwrd[N_DWRD];
     
     int ComputeDataBit() const {
         return (int)((dwrd[initial_word] >> (29 - initial_bit)) & 0x1UL)*2 - 1;
