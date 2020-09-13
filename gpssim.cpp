@@ -45,7 +45,7 @@ static constexpr double kWavelengthGpsL1ca_m = 0.190293672798365;
  *  \param[in] g GPS time at time of receiving the signal
  *  \param[in] e_pos_e_a is the position of the receiver.
  */
-void computeRange(range_t *rho, const ephem_t &eph, const ionoutc_t &ionoutc, 
+range_t ComputeRange(const ephem_t &eph, const ionoutc_t &ionoutc, 
                   gpstime_t g, const Eigen::Vector3d &e_pos_e_a)
 {
 	double pos[3],vel[3],clk[2];
@@ -72,35 +72,37 @@ void computeRange(range_t *rho, const ephem_t &eph, const ionoutc_t &ionoutc,
 	yrot = pos[1] - pos[0]*OMEGA_EARTH*tau;
 	pos[0] = xrot;
 	pos[1] = yrot;
+    
+    range_t rho;
 
 	// New observer to satellite vector and satellite range.
 	subVect(los, pos, e_pos_e_a);
 	const double range = normVect(los);
-	rho->d = range;
+	rho.d = range;
 
 	// Pseudorange.
-	rho->range = range - SPEED_OF_LIGHT*clk[0];
+	rho.range = range - SPEED_OF_LIGHT*clk[0];
 
 	// Relative velocity of SV and receiver.
 	const double rate = dotProd(vel, los)/range;
 
 	// Pseudorange rate.
-	rho->rate = rate; // - SPEED_OF_LIGHT*clk[1];
+	rho.rate = rate; // - SPEED_OF_LIGHT*clk[1];
 
 	// Time of application.
-	rho->g = g;
+	rho.g = g;
 
 	// Azimuth and elevation angles.
 	const GeodeticPosition llh = xyz2llh(e_pos_e_a);
 	ltcmat(llh, tmat);
 	ecef2neu(los, tmat, neu);
-	rho->azel = neu2azel(neu);
+	rho.azel = neu2azel(neu);
 
 	// Add ionospheric delay
-	rho->iono_delay = ionosphericDelay(ionoutc, g, llh, rho->azel);
-	rho->range += rho->iono_delay;
+	rho.iono_delay = ionosphericDelay(ionoutc, g, llh, rho.azel);
+	rho.range += rho.iono_delay;
 
-	return;
+	return rho;
 }
 
 
@@ -228,15 +230,14 @@ int allocateChannel(GpsChannel *chan, ephem_t *eph, int* allocatedSat,
 						generateNavMsg(current_simulation_time, &chan[i], 1);
 
 						// Initialize pseudorange
-                        range_t rho;
-						computeRange(&rho, eph[sv], ionoutc, 
+                        range_t rho = ComputeRange(eph[sv], ionoutc, 
                                      current_simulation_time, e_pos_e_a);
 						chan[i].rho0 = rho;
 
 						// Initialize carrier phase
 						const double r_xyz = rho.range;
 
-						computeRange(&rho, eph[sv], ionoutc, 
+						rho = ComputeRange(eph[sv], ionoutc, 
                                      current_simulation_time, 
                                      Eigen::Vector3d::Zero());
 						const double r_ref = rho.range;
@@ -616,11 +617,10 @@ int main(int argc, char *argv[])
 			if (chan[i].IsEnabled())
 			{
 				// Refresh code phase and data bit counters
-				range_t rho;
 				const int sv_index = chan[i].prn-1;
 
 				// Current pseudorange
-				computeRange(&rho, eph[ieph][sv_index], ionoutc, 
+				const range_t rho = ComputeRange(eph[ieph][sv_index], ionoutc, 
                              current_simulation_time, e_pos_e_a);
 
 				chan[i].azel = rho.azel;
