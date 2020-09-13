@@ -12,6 +12,8 @@
 #include <cassert>
 
 namespace {
+    
+static constexpr double kWavelengthGpsL1ca_m = 0.190293672798365;
 
 /*! \brief generate the C/A code sequence for a given Satellite Vehicle PRN
  *  \param[in] prn PRN nuber of the Satellite Vehicle
@@ -64,4 +66,42 @@ GpsChannel::GpsChannel(int in_prn)
     : prn(in_prn)
     , code_sequence_(GeneratePrnSequence(in_prn))
 {
+}
+
+/*! \brief Compute the code phase for a given channel (satellite)
+ *  \param chan Channel on which we operate (is updated)
+ *  \param[in] rho1 Current range, after \a dt has expired
+ *  \param[in dt delta-t (time difference) in seconds
+ */
+void GpsChannel::ComputeCodePhase(const range_t &rho1, const double dt)
+{
+	// Pseudorange rate.
+    // TODO: The range rate is computed in range_t, but not applied gere
+    // Why is that?
+	const double rhorate = (rho1.range - rho0.range)/dt;
+
+	// Carrier and code frequency.
+	f_carr = -rhorate * (1.0 / kWavelengthGpsL1ca_m);
+	f_code = CODE_FREQ + f_carr*CARR_TO_CODE;
+
+	// Initial code phase and data bit counters.
+	const double ms = ((subGpsTime(rho0.g,g0)+6.0) - 
+            rho0.range/SPEED_OF_LIGHT)*1000.0;
+
+	int ims = static_cast<int>(std::floor(ms));
+	code_phase = (ms-(double)ims)*CA_SEQ_LEN; // in chip
+
+	initial_word = ims/600; // 1 word = 30 bits = 600 ms
+	ims -= initial_word*600;
+
+	initial_bit = ims/20; // 1 bit = 20 code = 20 ms
+	ims -= initial_bit*20;
+
+	initial_code = ims; // 1 code = 1 ms
+
+	UpdateCodeChip();
+	UpdateDataBit();
+
+	// Save current pseudorange
+	rho0 = rho1;
 }

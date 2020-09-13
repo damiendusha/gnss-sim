@@ -101,45 +101,7 @@ void computeRange(range_t *rho, const ephem_t &eph, const ionoutc_t &ionoutc,
 	return;
 }
 
-/*! \brief Compute the code phase for a given channel (satellite)
- *  \param chan Channel on which we operate (is updated)
- *  \param[in] rho1 Current range, after \a dt has expired
- *  \param[in dt delta-t (time difference) in seconds
- */
-void computeCodePhase(GpsChannel *chan, const range_t &rho1, const double dt)
-{
-	// Pseudorange rate.
-    // TODO: The range rate is computed in range_t, but not applied gere
-    // Why is that?
-	const double rhorate = (rho1.range - chan->rho0.range)/dt;
 
-	// Carrier and code frequency.
-	chan->f_carr = -rhorate * (1.0 / kWavelengthGpsL1ca_m);
-	chan->f_code = CODE_FREQ + chan->f_carr*CARR_TO_CODE;
-
-	// Initial code phase and data bit counters.
-	const double ms = ((subGpsTime(chan->rho0.g,chan->g0)+6.0) - 
-            chan->rho0.range/SPEED_OF_LIGHT)*1000.0;
-
-	int ims = static_cast<int>(std::floor(ms));
-	chan->code_phase = (ms-(double)ims)*CA_SEQ_LEN; // in chip
-
-	chan->initial_word = ims/600; // 1 word = 30 bits = 600 ms
-	ims -= chan->initial_word*600;
-
-	chan->initial_bit = ims/20; // 1 bit = 20 code = 20 ms
-	ims -= chan->initial_bit*20;
-
-	chan->initial_code = ims; // 1 code = 1 ms
-
-	chan->UpdateCodeChip();
-	chan->UpdateDataBit();
-
-	// Save current pseudorange
-	chan->rho0 = rho1;
-
-	return;
-}
 
 
 void generateNavMsg(gpstime_t g, GpsChannel *chan, int init)
@@ -265,18 +227,20 @@ int allocateChannel(GpsChannel *chan, ephem_t *eph, int* allocatedSat,
 
 						// Initialize pseudorange
                         range_t rho;
-						computeRange(&rho, eph[sv], ionoutc, current_simulation_time, xyz);
+						computeRange(&rho, eph[sv], ionoutc, 
+                                     current_simulation_time, xyz);
 						chan[i].rho0 = rho;
 
 						// Initialize carrier phase
 						const double r_xyz = rho.range;
 
-						computeRange(&rho, eph[sv], ionoutc, current_simulation_time, ref);
+						computeRange(&rho, eph[sv], ionoutc, 
+                                     current_simulation_time, ref);
 						const double r_ref = rho.range;
 
 						const double phase_ini = 
                                 (2.0*r_ref - r_xyz) * (1.0 / kWavelengthGpsL1ca_m);
-						chan[i].carr_phase = phase_ini - floor(phase_ini);
+						chan[i].carrier_phase_cycles = phase_ini - floor(phase_ini);
 
 						// Done.
 						break;
@@ -654,7 +618,7 @@ int main(int argc, char *argv[])
 				chan[i].azel = rho.azel;
 
 				// Update code phase and data bit counters
-				computeCodePhase(&chan[i], rho, batch_period_s);
+				chan[i].ComputeCodePhase(rho, batch_period_s);
 
 				// Signal gain.
 				gain[i] = constellation_gain.ComputeGain(
@@ -676,9 +640,9 @@ int main(int argc, char *argv[])
                     const double coeff = chan[i].current_data_bit() * 
                             chan[i].current_code_chip() * gain[i];
                     const double ip = coeff * 
-                            cos_table.LookupValue(chan[i].carr_phase);
+                            cos_table.LookupValue(chan[i].carrier_phase_cycles);
                     const double qp = coeff * 
-                            sin_table.LookupValue(chan[i].carr_phase);
+                            sin_table.LookupValue(chan[i].carrier_phase_cycles);
 
 					// Accumulate for all visible satellites.
 					i_acc += ip;
