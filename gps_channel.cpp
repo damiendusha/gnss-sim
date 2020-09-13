@@ -85,7 +85,7 @@ void GpsChannel::ComputeCodePhase(const range_t &rho1, const double dt)
 	f_code = CODE_FREQ + f_carr*CARR_TO_CODE;
 
 	// Initial code phase and data bit counters.
-	const double ms = ((subGpsTime(rho0.g,g0)+6.0) - 
+	const double ms = ((subGpsTime(rho0.g, dataframe_reference_time)+6.0) - 
             rho0.range/SPEED_OF_LIGHT)*1000.0;
 
 	int ims = static_cast<int>(std::floor(ms));

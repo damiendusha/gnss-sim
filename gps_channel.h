@@ -27,7 +27,9 @@ class GpsChannel
     // Current carrier phase in cycles (i.e. value of 0 to 1).
     double carrier_phase_cycles;
 
-	gpstime_t g0;	/*!< GPS time at start */
+    /// \brief GPS time at the start of the full data frame (i.e. 30s boundary).
+    gpstime_t dataframe_reference_time;
+
 	unsigned long sbf[5][N_DWRD_SBF]; /*!< current subframe */
 	unsigned long dwrd[N_DWRD]; /*!< Data words of sub-frame */
 	AzimuthElevation azel;
@@ -38,10 +40,12 @@ class GpsChannel
     
     void ComputeCodePhase(const range_t &rho1, const double dt);
 
-    int current_data_bit() const { return current_data_bit_; }
-    int current_code_chip() const { return current_code_chip_; }
+    double current_code_data_symbol() const { 
+        return current_code_data_symbol_;
+    }
 
-    void UpdateCarrierPhase(const double delta_t_s) {
+    void UpdateCarrierPhase(const double delta_t_s) 
+    {
         carrier_phase_cycles += f_carr * delta_t_s;
         if (carrier_phase_cycles >= 1.0)
             carrier_phase_cycles -= 1.0;
@@ -82,6 +86,7 @@ class GpsChannel
     
     int current_data_bit_ = 0;
     int current_code_chip_ = 0;
+    double current_code_data_symbol_ = 0;
     
     int initial_word;	/*!< initial word */
     int initial_bit;	/*!< initial bit */
@@ -105,10 +110,12 @@ class GpsChannel
     
     void UpdateCodeChip() {
         current_code_chip_ = ComputeCodeChip();
+        current_code_data_symbol_ = current_code_chip_ * current_data_bit_;
     }
 
     void UpdateDataBit() {
         current_data_bit_ = ComputeDataBit();
+        current_code_data_symbol_ = current_code_chip_ * current_data_bit_;
     }
 };
 

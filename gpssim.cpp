@@ -21,7 +21,7 @@
 #include "sample_writer.h"
 #include "satellite_gain.h"
 
-#include <eigen3/Eigen/Core>
+#include <Eigen/Core>
 
 #include <unistd.h>
 #include <iostream>
@@ -114,7 +114,8 @@ void generateNavMsg(gpstime_t g, GpsChannel *chan, int init)
     gpstime_t g0;
     g0.week = g.week;
     g0.sec = (double)(((unsigned long)(g.sec+0.5))/30UL) * 30.0;
-    chan->g0 = g0; // Data bit reference time
+
+    chan->dataframe_reference_time = g0; // Data bit reference time
 
     const unsigned long wn = (unsigned long)(g0.week%1024);
     unsigned long tow = ((unsigned long)g0.sec)/6UL;
@@ -644,8 +645,8 @@ int main(int argc, char *argv[])
 			{
 				if (chan[i].IsEnabled())
 				{
-                    const double coeff = chan[i].current_data_bit() * 
-                            chan[i].current_code_chip() * gain[i];
+                    const double coeff =
+                            chan[i].current_code_data_symbol() * gain[i];
                     const double ip = coeff * 
                             cos_table.LookupValue(chan[i].carrier_phase_cycles);
                     const double qp = coeff * 
