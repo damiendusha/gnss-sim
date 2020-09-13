@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include <Eigen/Core>
+
 #include <cmath>
 
 class AzimuthElevation {
@@ -93,13 +95,13 @@ class GeodeticPosition {
  *  \param[in] xyz Input Array of X, Y and Z ECEF coordinates
  *  \param[out] llh Output Array of Latitude, Longitude and Height
  */
-GeodeticPosition xyz2llh(const double *xyz);
+GeodeticPosition xyz2llh(const Eigen::Vector3d &ecef);
 
 /*! \brief Convert Lat/Long/Height into Earth-centered Earth-fixed (ECEF)
  *  \param[in] llh Input Array of Latitude, Longitude and Height
  *  \param[out] xyz Output Array of X, Y and Z ECEF coordinates
  */
-void llh2xyz(const GeodeticPosition &llh, double *xyz);
+Eigen::Vector3d llh2xyz(const GeodeticPosition &llh);
 
 /*! \brief Convert North-Eeast-Up to Azimuth + Elevation
  *  \param[in] neu Input position in North-East-Up format

@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include <Eigen/Core>
+
 #include <cmath>
 
 /*! \brief Subtract two vectors of double
@@ -23,6 +25,18 @@ static inline void subVect(double *y, const double *x1, const double *x2)
 	y[2] = x1[2]-x2[2];
 
 	return;
+}
+
+/*! \brief Subtract two vectors of double
+ *  \param[out] y Result of subtraction
+ *  \param[in] x1 Minuend of subtracion
+ *  \param[in] x2 Subtrahend of subtracion
+ */
+static inline void subVect(double *y, const double *x1, const Eigen::Vector3d &x2)
+{
+	y[0] = x1[0]-x2.coeff(0);
+	y[1] = x1[1]-x2.coeff(1);
+	y[2] = x1[2]-x2.coeff(2);
 }
 
 /*! \brief Compute Norm of Vector

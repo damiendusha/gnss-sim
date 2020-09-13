@@ -11,39 +11,40 @@
 #include "gpssim.h"
 #include "gps_math.h"
 
+#include <Eigen/Core>
+
 #include <cmath>
 
-GeodeticPosition xyz2llh(const double *xyz)
+GeodeticPosition xyz2llh(const Eigen::Vector3d &ecef)
 {
-	double rho2,dz,zdz,nh,slat,n,dz_new;
-
 	constexpr double a = WGS84_RADIUS;
 	constexpr double e = WGS84_ECCENTRICITY;
 	constexpr double e2 = e*e;
 
     constexpr double eps = 1.0e-3;
-	if (normVect(xyz) < eps)
+	if (ecef.norm() < eps)
 	{
         // Invalid ECEF vector
         return GeodeticPosition::FromRadians(0.0, 0.0, -a);
 	}
 
-	const double x = xyz[0];
-	const double y = xyz[1];
-	const double z = xyz[2];
+	const double x = ecef.x();
+	const double y = ecef.y();
+	const double z = ecef.z();
 
-	rho2 = x*x + y*y;
-	dz = e2*z;
+	const double rho2 = x*x + y*y;
+	double dz = e2*z;
 
+    double n, zdz, nh;
 	while (1)
 	{
 		zdz = z + dz;
 		nh = std::sqrt(rho2 + zdz*zdz);
-		slat = zdz / nh;
+		const double slat = zdz / nh;
 		n = a / std::sqrt(1.0-e2*slat*slat);
-		dz_new = n*e2*slat;
+		const double dz_new = n*e2*slat;
 
-		if (fabs(dz-dz_new) < eps)
+		if (std::fabs(dz-dz_new) < eps)
 			break;
 
 		dz = dz_new;
@@ -56,7 +57,7 @@ GeodeticPosition xyz2llh(const double *xyz)
     return GeodeticPosition::FromRadians(lat_rad, lon_rad, height_m);
 }
 
-void llh2xyz(const GeodeticPosition &llh, double *xyz)
+Eigen::Vector3d llh2xyz(const GeodeticPosition &llh)
 {
 	constexpr double a = WGS84_RADIUS;
 	constexpr double e = WGS84_ECCENTRICITY;
@@ -72,11 +73,11 @@ void llh2xyz(const GeodeticPosition &llh, double *xyz)
 	const double nph = n + llh.height_m();
 
 	const double tmp = nph*clat;
-	xyz[0] = tmp*clon;
-	xyz[1] = tmp*slon;
-	xyz[2] = ((1.0-e2)*n + llh.height_m())*slat;
+	const double x = tmp*clon;
+	const double y = tmp*slon;
+	const double z = ((1.0-e2)*n + llh.height_m())*slat;
 
-	return;
+	return Eigen::Vector3d(x, y, z);
 }
 
 void ltcmat(const GeodeticPosition &llh, double t[3][3])

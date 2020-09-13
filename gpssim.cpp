@@ -21,6 +21,8 @@
 #include "sample_writer.h"
 #include "satellite_gain.h"
 
+#include <eigen3/Eigen/Core>
+
 #include <unistd.h>
 #include <iostream>
 
@@ -41,10 +43,10 @@ static constexpr double kWavelengthGpsL1ca_m = 0.190293672798365;
  *  \param[out] rho The computed range
  *  \param[in] eph Ephemeris data of the satellite
  *  \param[in] g GPS time at time of receiving the signal
- *  \param[in] xyz position of the receiver
+ *  \param[in] e_pos_e_a is the position of the receiver.
  */
 void computeRange(range_t *rho, const ephem_t &eph, const ionoutc_t &ionoutc, 
-                  gpstime_t g, double xyz[])
+                  gpstime_t g, const Eigen::Vector3d &e_pos_e_a)
 {
 	double pos[3],vel[3],clk[2];
 	double los[3];
@@ -57,7 +59,7 @@ void computeRange(range_t *rho, const ephem_t &eph, const ionoutc_t &ionoutc,
 	satpos(eph, g, pos, vel, clk);
 
 	// Receiver to satellite vector and light-time.
-	subVect(los, pos, xyz);
+	subVect(los, pos, e_pos_e_a);
 	const double tau = normVect(los)/SPEED_OF_LIGHT;
 
 	// Extrapolate the satellite position backwards to the transmission time.
@@ -72,7 +74,7 @@ void computeRange(range_t *rho, const ephem_t &eph, const ionoutc_t &ionoutc,
 	pos[1] = yrot;
 
 	// New observer to satellite vector and satellite range.
-	subVect(los, pos, xyz);
+	subVect(los, pos, e_pos_e_a);
 	const double range = normVect(los);
 	rho->d = range;
 
@@ -89,7 +91,7 @@ void computeRange(range_t *rho, const ephem_t &eph, const ionoutc_t &ionoutc,
 	rho->g = g;
 
 	// Azimuth and elevation angles.
-	const GeodeticPosition llh = xyz2llh(xyz);
+	const GeodeticPosition llh = xyz2llh(e_pos_e_a);
 	ltcmat(llh, tmat);
 	ecef2neu(los, tmat, neu);
 	rho->azel = neu2azel(neu);
@@ -171,7 +173,8 @@ void generateNavMsg(gpstime_t g, GpsChannel *chan, int init)
 	}
 }
 
-bool checkSatVisibility(const ephem_t &eph, gpstime_t g, double *xyz, 
+bool checkSatVisibility(const ephem_t &eph, gpstime_t g, 
+                        const Eigen::Vector3d &e_pos_e_a, 
                         double elevation_mask_deg, AzimuthElevation &out_azel)
 {
 	double neu[3];
@@ -181,11 +184,11 @@ bool checkSatVisibility(const ephem_t &eph, gpstime_t g, double *xyz,
 	if (!eph.valid)
         return false;
 
-	const GeodeticPosition llh = xyz2llh(xyz);
+	const GeodeticPosition llh = xyz2llh(e_pos_e_a);
 	ltcmat(llh, tmat);
 
 	satpos(eph, g, pos, vel, clk);
-	subVect(los, pos, xyz);
+	subVect(los, pos, e_pos_e_a);
 	ecef2neu(los, tmat, neu);
 	out_azel = neu2azel(neu);
 
@@ -194,16 +197,14 @@ bool checkSatVisibility(const ephem_t &eph, gpstime_t g, double *xyz,
 
 int allocateChannel(GpsChannel *chan, ephem_t *eph, int* allocatedSat, 
                     ionoutc_t ionoutc, gpstime_t current_simulation_time, 
-                    double *xyz, double elevation_mask_deg)
+                    const Eigen::Vector3d &e_pos_e_a, double elevation_mask_deg)
 {
 	int num_visible_sats = 0;
 	AzimuthElevation azel;
 
-	double ref[3]={0.0};
-
 	for (int sv = 0; sv < MAX_SAT; sv++)
 	{
-		if (checkSatVisibility(eph[sv], current_simulation_time, xyz, elevation_mask_deg, azel))
+		if (checkSatVisibility(eph[sv], current_simulation_time, e_pos_e_a, elevation_mask_deg, azel))
 		{
 			num_visible_sats++;
 
@@ -228,14 +229,15 @@ int allocateChannel(GpsChannel *chan, ephem_t *eph, int* allocatedSat,
 						// Initialize pseudorange
                         range_t rho;
 						computeRange(&rho, eph[sv], ionoutc, 
-                                     current_simulation_time, xyz);
+                                     current_simulation_time, e_pos_e_a);
 						chan[i].rho0 = rho;
 
 						// Initialize carrier phase
 						const double r_xyz = rho.range;
 
 						computeRange(&rho, eph[sv], ionoutc, 
-                                     current_simulation_time, ref);
+                                     current_simulation_time, 
+                                     Eigen::Vector3d::Zero());
 						const double r_ref = rho.range;
 
 						const double phase_ini = 
@@ -305,7 +307,8 @@ int main(int argc, char *argv[])
 	GpsChannel chan[MAX_CHAN];
 	double elevation_mask_deg = 0.0;
 
-	double xyz[3];
+    // User position in ECEF coordinates.
+    Eigen::Vector3d e_pos_e_a;
 
     std::string rinex2_nav_file;
     std::string output_sample_filename = {"gpssim.bin"};
@@ -347,16 +350,20 @@ int main(int argc, char *argv[])
             rinex2_nav_file.assign(optarg);
 			break;
 		case 'c':
+        {
 			// Static ECEF coordinates input mode
+            double xyz[3];
 			sscanf(optarg,"%lf,%lf,%lf", &xyz[0], &xyz[1], &xyz[2]);
+            e_pos_e_a = {xyz[0], xyz[1], xyz[2]};
 			break;
+        }
 		case 'l':
         {
 			// Static geodetic coordinates input mode.
             double raw_lat, raw_lon, raw_height;
 			sscanf(optarg,"%lf,%lf,%lf",&raw_lat, &raw_lon, &raw_height);
             llh = GeodeticPosition::FromDegrees(raw_lat, raw_lon, raw_height);
-			llh2xyz(llh,xyz); // Convert llh to xyz
+			e_pos_e_a = llh2xyz(llh);
 			break;
         }
 		case 'o':
@@ -552,7 +559,7 @@ int main(int argc, char *argv[])
 
 	// Allocate visible satellites
 	allocateChannel(chan, eph[ieph], allocatedSat, ionoutc, current_simulation_time, 
-                    xyz, elevation_mask_deg);
+                    e_pos_e_a, elevation_mask_deg);
 
 	for(int i = 0; i < MAX_CHAN; i++)
 	{
@@ -613,7 +620,7 @@ int main(int argc, char *argv[])
 
 				// Current pseudorange
 				computeRange(&rho, eph[ieph][sv_index], ionoutc, 
-                             current_simulation_time, xyz);
+                             current_simulation_time, e_pos_e_a);
 
 				chan[i].azel = rho.azel;
 
@@ -708,7 +715,7 @@ int main(int argc, char *argv[])
 
 			// Update channel allocation
 			allocateChannel(chan, eph[ieph], allocatedSat, ionoutc, 
-                            current_simulation_time, xyz, elevation_mask_deg);
+                            current_simulation_time, e_pos_e_a, elevation_mask_deg);
 
 			// Show details about simulated channels
 			if (verbose)
