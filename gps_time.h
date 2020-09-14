@@ -14,6 +14,8 @@ struct gpstime_t
 {
     int week;	/*!< GPS week number (since January 1980) */
     double sec; 	/*!< second inside the GPS \a week */
+
+    bool On30sBoundary() const;
 };
 
 /*! \brief Structure representing UTC time */

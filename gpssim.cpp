@@ -365,10 +365,11 @@ int main(int argc, char *argv[])
     const double sample_period_s = 1.0 / raw_samp_freq;
     const int sample_period_ns = 1000000000 / sample_freq_hz;
 
-    // Currently, samples are processed in batches of 100ms
-    const int num_sample_batches = std::lround(duration * 10.0);
-    const int samples_per_batch = 100000000 / sample_period_ns;
-    const double batch_period_s = 0.1;
+    // Currently, samples are processed in batches of 1ms
+    const double batch_period_s = 0.001;
+    const int num_sample_batches = std::lround(duration / batch_period_s);
+    const int samples_per_batch = std::lround(
+            (1e9 * batch_period_s) / sample_period_ns);
 
 	////////////////////////////////////////////////////////////
 	// Read ephemeris
@@ -536,6 +537,9 @@ int main(int argc, char *argv[])
     constellation_gain.SetSatelliteToConstantGain(28, 0.10);
     constellation_gain.SetSatelliteToConstantGain(32, 0.07);
 
+    std::cout << "Num batches = " << num_sample_batches << std::endl;
+    std::cout << "samples_per_batch = " << samples_per_batch << std::endl;
+    
 	for (int batch = 1; batch < num_sample_batches; batch++)
 	{
         // Per-channel gain, maximum value of 1.
@@ -607,10 +611,7 @@ int main(int argc, char *argv[])
         // Update navigation message and channel allocation on 30s boundaries.
         //
 
-        const int icurrent_simulation_time = 
-            (int)(current_simulation_time.sec*10.0+0.5);
-
-        if (icurrent_simulation_time % 300 == 0)
+        if (current_simulation_time.On30sBoundary())
 		{
 			// Update navigation message
 			for (int i = 0; i < MAX_CHAN; i++)
@@ -666,7 +667,8 @@ int main(int argc, char *argv[])
 		current_simulation_time = incGpsTime(current_simulation_time, batch_period_s);
 
 		// Update time counter
-		fprintf(stderr, "\rTime into run = %4.1f", subGpsTime(current_simulation_time, simulation_start_gps_time));
+		fprintf(stderr, "\rTime into run = %4.2f", 
+                subGpsTime(current_simulation_time, simulation_start_gps_time));
 		fflush(stdout);
 	}
 

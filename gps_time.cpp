@@ -22,6 +22,10 @@ static constexpr double SECONDS_IN_MINUTE = 60.0;
 
 }
 
+bool gpstime_t::On30sBoundary() const {
+    return std::fmod(sec, 30.0) < 1e-9;
+}
+
 /*! \brief Convert a UTC date into a GPS date
  *  \param[in] t input date in UTC form
  *  \param[out] g output date in GPS form
